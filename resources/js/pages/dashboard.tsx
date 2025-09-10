@@ -63,53 +63,56 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-                        <CardHeader>
-                            <CardTitle className="text-2xl font-bold">Manajemen Port</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Port</TableHead>
-                                        <TableHead>Nama</TableHead>
-                                        <TableHead>Durasi</TableHead>
-                                        <TableHead>Total</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Aksi</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {ports.map((port) => (
-                                        <TableRow key={port.id}>
-                                            <TableCell className="font-medium">{port.id}</TableCell>
-                                            <TableCell>{port.name}</TableCell>
-                                            <TableCell className="font-mono">{port.duration}</TableCell>
-                                            <TableCell className="font-semibold">{port.price}</TableCell>
-                                            <TableCell>{getStatusBadge(port.status)}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="text-xs"
-                                                        onClick={() => {
-                                                            setSelectedPort(port)
-                                                            setModalOpen(true)
-                                                        }}
-                                                    >
-                                                        <Settings className="w-3 h-3 mr-1" />
-                                                        Set/Lihat
-                                                    </Button>
-                                                    <Button size="sm" className={cn(port.status=="on"?"bg-red-400 hover:bg-red-500":"bg-green-400 hover:bg-green-500")}>
-                                                        {port.status=="on"?<Pause className="w-3 h-3" />:<Play className="w-3 h-3" />}
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-2xl font-bold">Manajemen Port</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Port</TableHead>
+                                <TableHead>Nama</TableHead>
+                                <TableHead>Durasi</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {ports.map((port) => (
+                                <TableRow key={port.id}>
+                                    <TableCell className="font-medium">{port.id}</TableCell>
+                                    <TableCell>{port.name}</TableCell>
+                                    <TableCell className="font-mono">{port.duration}</TableCell>
+                                    <TableCell className="font-semibold">{port.price}</TableCell>
+                                    <TableCell>{getStatusBadge(port.status)}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-xs"
+                                                onClick={() => {
+                                                    setSelectedPort(port)
+                                                    setModalOpen(true)
+                                                }}
+                                            >
+                                                <Settings className="w-3 h-3 mr-1" />
+                                                Set/Lihat
+                                            </Button>
+                                            <Button size="sm" className={cn(port.status == "on" ? "bg-red-400 hover:bg-red-500" : "bg-green-400 hover:bg-green-500")}>
+                                                {port.status == "on" ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
             {/* ModalSetPort */}
             {selectedPort && (
                 <ModalSetPort
