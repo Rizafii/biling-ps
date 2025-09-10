@@ -2,16 +2,38 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\PromoController;
+// use App\Http\Controllers\HistoriController; // aktifkan kalau sudah siap
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
+
+    // Dashboard
+    Route::get('/dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    // Promo (resource route)
+    Route::resource('/promo', PromoController::class);
+
+    // Histori (nanti kalau sudah ada controller)
+    // Route::resource('histori', HistoriController::class);
+
+    // Halaman histori index manual
+    Route::get('/histori', function () {
+        return Inertia::render('histori/index');
+    })->name('histori');
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+// Home page redirect ke dashboard
+Route::get('/', function () {
+    return redirect()->route('dashboard');
+});
+
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';
