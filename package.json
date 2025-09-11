@@ -7,7 +7,6 @@
         "dev": "vite",
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",
-        "lint": "eslint . --fix",
         "types": "tsc --noEmit"
     },
     "devDependencies": {

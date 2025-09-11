@@ -1,24 +1,21 @@
-/* eslint-disable */
 "use client"
 
-import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import AppLayout from "@/layouts/app-layout"
-import { dashboard } from "@/routes"
 import { type BreadcrumbItem } from "@/types"
 import { Head, useForm } from "@inertiajs/react"
 import { Edit, Eye, Plus, Trash2 } from "lucide-react"
-import promo from "@/routes/promo"
+import { useMemo, useState } from "react"
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: "Promo", href: dashboard().url },
+    // { title: "Promo", href: dashboard().url },
 ]
 
 interface Promo {
@@ -62,7 +59,7 @@ export default function Index({ promos }: Props) {
     }
 
     const filteredPromos = useMemo(() => {
-        let data = promos.filter((p) =>
+        const data = promos.filter((p) =>
             p.name.toLowerCase().includes(search.toLowerCase()) ||
             (p.code ?? "").toLowerCase().includes(search.toLowerCase())
         )
