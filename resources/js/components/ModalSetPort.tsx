@@ -1,147 +1,158 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Play, RotateCcw } from "lucide-react"
+import { Play, Pause, FileText, RotateCcw } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-interface Promo {
+interface Port {
     id: string
-    label: string
-}
-
-interface ModalSetPortProps {
-    isOpen: boolean
-    onClose: () => void
-    stationName: string
-    statusPort: "ON" | "OFF"
-    promoList: Promo[]
+    no_port: string
+    nama_port: string
+    type: string // t = timed, b = bebas, "" = undefined
+    nama_pelanggan: string
+    duration: string // "HH:MM:SS"
+    price: string
+    status: "idle" | "on" | "paus" | "off"
     time: number
     total: number
     billing: number
     subtotal: number
     diskon: number
+    promoList: { id: string; label: string }[]
+    mode: "timed" | "bebas"
+    hours: string
+    minutes: string
+    promoScheme: string
+}
+
+interface ModalSetPortProps {
+    isOpen: boolean
+    onClose: () => void
+    port: Port
     timeFormat: (t: number) => string
 }
 
-export function ModalSetPort({
-    isOpen,
-    onClose,
-    stationName,
-    statusPort,
-    promoList,
-    time,
-    total,
-    billing,
-    subtotal,
-    diskon,
-    timeFormat,
-}: ModalSetPortProps) {
-    const [customer, setCustomer] = useState("")
-    const [hourlyRate, setHourlyRate] = useState("0")
-    const [promoScheme, setPromoScheme] = useState("tanpa-promo")
-    const [mode, setMode] = useState<"bebas" | "timed">("timed")
-    const [hours, setHours] = useState("0")
-    const [minutes, setMinutes] = useState("0")
+export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPortProps) {
+    const [portData, setPortData] = useState({
+        customer: "",
+        hourlyRate: "",
+        promoScheme: "",
+        mode: "timed" as "timed" | "bebas",
+        hours: "",
+        minutes: "",
+    })
 
-    const isRunning = statusPort === "ON"
+    function formatMinutesToHHMMSS(totalMinutes: number): string {
+        const hours = Math.floor(totalMinutes / 60)
+        const minutes = totalMinutes % 60
+        const seconds = 0 // karena inputnya menit, detik default 0
 
-    const handleStart = () => {
-        console.log({
-            customer,
-            hourlyRate,
-            promoScheme,
-            mode,
-            hours: mode === "timed" ? hours : "0",
-            minutes: mode === "timed" ? minutes : "0",
-        })
-        onClose()
+        const hh = hours.toString().padStart(2, "0")
+        const mm = minutes.toString().padStart(2, "0")
+        const ss = seconds.toString().padStart(2, "0")
+
+        return `${hh}:${mm}:${ss}`
     }
 
-    const handleReset = () => {
-        setCustomer("")
-        setHourlyRate("0")
-        setPromoScheme("tanpa-promo")
-        setMode("timed")
-        setHours("0")
-        setMinutes("0")
-    }
+    useEffect(() => {
+        if (isOpen && port) {
+            setPortData({
+                customer: port.nama_pelanggan || "",
+                hourlyRate: port.price || "",
+                promoScheme: port.promoScheme || "",
+                mode: port.mode,
+                hours: port.hours || "",
+                minutes: port.minutes || "",
+            })
+        }
+    }, [isOpen, port])
+
+    const handleStart = () => console.log("Start Port:", portData)
+    const handlePause = () => console.log("Pause Port:", portData)
+    const handleFinish = () => console.log("Finish & Nota:", portData)
+    const handleReset = () =>
+        setPortData({ customer: "", hourlyRate: "", promoScheme: "", mode: "timed", hours: "", minutes: "" })
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="flex items-center justify-between mr-4">
-                        <span>{stationName}</span>
+                        <span>{port.nama_port}</span>
                         <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
-                            {statusPort}
+                            {port.status}
                         </span>
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-6">
-                    {/* Duration and Total Display */}
+                    {/* Duration & Total */}
                     <div className="flex justify-between items-center">
                         <div>
                             <Label className="text-sm text-gray-600">Durasi</Label>
-                            <div className="text-2xl font-mono font-bold">{timeFormat(time)}</div>
+                            <div className="text-2xl font-mono font-bold">{formatMinutesToHHMMSS(port.time)}</div>
                         </div>
                         <div className="text-right">
                             <Label className="text-sm text-gray-600">Total</Label>
-                            <div className="text-2xl font-bold">Rp {total}</div>
+                            <div className="text-2xl font-bold">Rp {port.total}</div>
                         </div>
                     </div>
 
-                    {/* Customer and Rate */}
+                    {/* Customer & Rate */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="customer">Pelanggan</Label>
                             <Input
                                 id="customer"
                                 placeholder="Nama / Kode"
-                                value={customer}
-                                onChange={(e) => setCustomer(e.target.value)}
-                                disabled={isRunning}
+                                value={portData.customer}
+                                onChange={(e) => setPortData(prev => ({ ...prev, customer: e.target.value }))}
+                                disabled={port.status !== "idle"}
+                                className={port.status !== "idle" ? "cursor-not-allowed bg-gray-100 text-gray-400" : ""}
                             />
                         </div>
                         <div>
                             <Label htmlFor="rate">Tarif per Jam</Label>
-                            <div className="flex items-center rounded-md border px-3">
-                                <span className="text-gray-500">Rp</span>
+                            <div className="flex items-center rounded-md border pl-3">
+                                <span className="text-gray-500 pr-2">Rp</span>
                                 <Input
                                     id="rate"
                                     type="text"
-                                    value={hourlyRate}
-                                    onChange={(e) => setHourlyRate(e.target.value.replace(/[^0-9]/g, ""))}
-                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                                    disabled={isRunning}
+                                    value={portData.hourlyRate}
+                                    onChange={(e) =>
+                                        setPortData(prev => ({ ...prev, hourlyRate: e.target.value.replace(/[^0-9]/g, "") }))
+                                    }
+                                    disabled={port.status !== "idle"}
+                                    className={cn(
+                                        "border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-l-none",
+                                        port.status !== "idle" ? "cursor-not-allowed bg-gray-100 text-gray-400" : ""
+                                    )}
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Mode Selection */}
+                    {/* Mode */}
                     <div>
-                        <Label className="text-sm font-medium">Mode</Label>
-                        <RadioGroup
-                            value={mode}
-                            onValueChange={(value: "bebas" | "timed") => setMode(value)}
-                            className="flex gap-6 mt-2"
-                            disabled={isRunning}
+                        <Label htmlFor="mode">Mode</Label>
+                        <Select
+                            value={portData.mode}
+                            onValueChange={(val) => setPortData(prev => ({ ...prev, mode: val as "timed" | "bebas" }))}
+                            disabled={port.status !== "idle"}
                         >
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="bebas" id="bebas" disabled={isRunning} />
-                                <Label htmlFor="bebas">Bebas</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="timed" id="timed" disabled={isRunning} />
-                                <Label htmlFor="timed">Timed</Label>
-                            </div>
-                        </RadioGroup>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Pilih mode" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="timed">Timed</SelectItem>
+                                <SelectItem value="bebas">Bebas</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Time Input */}
@@ -153,10 +164,10 @@ export function ModalSetPort({
                                 type="text"
                                 inputMode="numeric"
                                 maxLength={2}
-                                value={hours}
-                                onChange={(e) => setHours(e.target.value.replace(/[^0-9]/g, ""))}
-                                disabled={mode === "bebas" || isRunning}
-                                className={mode === "bebas" || isRunning ? "bg-gray-100 text-gray-400" : ""}
+                                value={portData.hours}
+                                onChange={(e) => setPortData(prev => ({ ...prev, hours: e.target.value.replace(/[^0-9]/g, "") }))}
+                                disabled={portData.mode === "bebas" || port.status !== "idle"}
+                                className={portData.mode === "bebas" || port.status !== "idle" ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
                             />
                         </div>
                         <div>
@@ -166,23 +177,27 @@ export function ModalSetPort({
                                 type="text"
                                 inputMode="numeric"
                                 maxLength={2}
-                                value={minutes}
-                                onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ""))}
-                                disabled={mode === "bebas" || isRunning}
-                                className={mode === "bebas" || isRunning ? "bg-gray-100 text-gray-400" : ""}
+                                value={portData.minutes}
+                                onChange={(e) => setPortData(prev => ({ ...prev, minutes: e.target.value.replace(/[^0-9]/g, "") }))}
+                                disabled={portData.mode === "bebas" || port.status !== "idle"}
+                                className={portData.mode === "bebas" || port.status !== "idle" ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
                             />
                         </div>
                     </div>
 
-                    {/* Promo Scheme */}
+                    {/* Promo */}
                     <div>
                         <Label htmlFor="promo">Skema Promo</Label>
-                        <Select value={promoScheme} onValueChange={setPromoScheme} disabled={isRunning}>
+                        <Select
+                            value={portData.promoScheme}
+                            onValueChange={(val) => setPortData(prev => ({ ...prev, promoScheme: val }))}
+                            disabled={port.status !== "idle"}
+                        >
                             <SelectTrigger>
                                 <SelectValue placeholder="Pilih promo" />
                             </SelectTrigger>
                             <SelectContent>
-                                {promoList.map((promo) => (
+                                {port.promoList.map((promo) => (
                                     <SelectItem key={promo.id} value={promo.id}>
                                         {promo.label}
                                     </SelectItem>
@@ -193,30 +208,38 @@ export function ModalSetPort({
 
                     {/* Action Buttons */}
                     <div className="flex gap-3">
-                        <Button
-                            onClick={handleStart}
-                            className="flex-1 bg-slate-800 hover:bg-slate-700"
-                            disabled={isRunning}
-                        >
-                            <Play className="w-4 h-4 mr-2" />
-                            Mulai
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={handleReset}
-                            className="px-6 bg-transparent"
-                            disabled={isRunning}
-                        >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Reset
-                        </Button>
+                        {port.status === "off" ? (
+                            <div className="flex-1 text-center text-red-500 font-semibold">
+                                Port Sedang Off
+                            </div>
+                        ) : port.status === "idle" ? (
+                            <Button onClick={handleStart} className="flex-1 bg-blue-500 hover:bg-blue-600">
+                                <Play className="w-4 h-4 mr-2" />
+                                Mulai
+                            </Button>
+                        ) : (
+                            <>
+                                <Button onClick={handlePause} className="flex-1 bg-yellow-500 hover:bg-yellow-600">
+                                    <Pause className="w-4 h-4 mr-2" />
+                                    Pause
+                                </Button>
+                                <Button onClick={handleFinish} className="flex-1 bg-green-500 hover:bg-green-600">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Selesai & Nota
+                                </Button>
+                                <Button variant="outline" onClick={handleReset} className="px-6 bg-transparent">
+                                    <RotateCcw className="w-4 h-4 mr-2" />
+                                    Reset
+                                </Button>
+                            </>
+                        )}
                     </div>
 
                     {/* Footer Info */}
                     <div className="flex justify-between text-sm text-gray-600 pt-2 border-t">
-                        <span>Billable: {billing} m</span>
-                        <span>Subtotal: Rp {subtotal}</span>
-                        <span>Diskon: Rp {diskon}</span>
+                        <span>Billable: {port.billing} m</span>
+                        <span>Subtotal: Rp {port.subtotal}</span>
+                        <span>Diskon: Rp {port.diskon}</span>
                     </div>
                 </div>
             </DialogContent>

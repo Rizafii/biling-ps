@@ -1,43 +1,206 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { ModalSetPort } from "@/components/ModalSetPort"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import AppLayout from "@/layouts/app-layout"
 import { cn } from "@/lib/utils"
 import { dashboard } from "@/routes"
 import { type BreadcrumbItem } from "@/types"
 import { Head } from "@inertiajs/react"
-import { Pause, Play, Settings, ChevronUp, ChevronDown, Plus } from "lucide-react"
-import { useState, useMemo, useEffect } from "react"
+import { Pause, Play, Settings, ChevronUp, ChevronDown } from "lucide-react"
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: "Dashboard", href: dashboard().url },
 ]
 
+interface Port {
+    id: string
+    no_port: string
+    nama_port: string
+    type: string // t = timed, b = bebas, "" = undefined
+    nama_pelanggan: string
+    duration: string // "HH:MM:SS"
+    price: string
+    status: "idle" | "on" | "paus" | "off"
+    time: number // dalam menit atau detik, sesuai format timeFormat
+    total: number
+    billing: number // menit
+    subtotal: number
+    diskon: number
+    promoList: { id: string; label: string }[]
+    mode: "timed" | "bebas"
+    hours: string
+    minutes: string
+    promoScheme: string
+}
 export default function Dashboard() {
+
+    const ports: Port[] = [
+        {
+            id: "1",
+            no_port: "PORT 1",
+            nama_port: "PS 1",
+            type: "t",
+            nama_pelanggan: "Web Server",
+            duration: "02:15:30",
+            price: "25.000",
+            status: "on",
+            time: 135, // menit
+            total: 25000,
+            billing: 135,
+            subtotal: 25000,
+            diskon: 0,
+            promoList: [{ id: "tanpa-promo", label: "Tanpa Promo" }, { id: "promo-1", label: "Promo 1" }],
+            mode: "timed",
+            hours: "2",
+            minutes: "15",
+            promoScheme: "promo-1",
+        },
+        {
+            id: "2",
+            no_port: "PORT 2",
+            nama_port: "PS 2",
+            type: "b",
+            nama_pelanggan: "Database Server",
+            duration: "01:45:22",
+            price: "20.000",
+            status: "on",
+            time: 105,
+            total: 20000,
+            billing: 105,
+            subtotal: 20000,
+            diskon: 0,
+            promoList: [{ id: "tanpa-promo", label: "Tanpa Promo" }, { id: "promo-1", label: "Promo 1" }],
+            mode: "bebas",
+            hours: "1",
+            minutes: "45",
+            promoScheme: "tanpa-promo",
+        },
+        {
+            id: "3",
+            no_port: "PORT 3",
+            nama_port: "PS 3",
+            type: "",
+            nama_pelanggan: "API Gateway",
+            duration: "00:30:15",
+            price: "15.000",
+            status: "off",
+            time: 0,
+            total: 0,
+            billing: 0,
+            subtotal: 0,
+            diskon: 0,
+            promoList: [{ id: "tanpa-promo", label: "Tanpa Promo" }],
+            mode: "timed",
+            hours: "0",
+            minutes: "30",
+            promoScheme: "tanpa-promo",
+        },
+        {
+            id: "5",
+            no_port: "PORT 5",
+            nama_port: "PS 5",
+            type: "",
+            nama_pelanggan: "",
+            duration: "00:00:00",
+            price: "00.000",
+            status: "idle",
+            time: 0,
+            total: 0,
+            billing: 0,
+            subtotal: 0,
+            diskon: 0,
+            promoList: [{ id: "tanpa-promo", label: "Tanpa Promo" }, { id: "promo-1", label: "Promo 1" }],
+            mode: "timed",
+            hours: "0",
+            minutes: "0",
+            promoScheme: "tanpa-promo",
+        },
+        {
+            id: "6",
+            no_port: "PORT 6",
+            nama_port: "PS 6",
+            type: "t",
+            nama_pelanggan: "Cache Server",
+            duration: "00:00:00",
+            price: "0",
+            status: "paus",
+            time: 72,
+            total: 18000,
+            billing: 72,
+            subtotal: 18000,
+            diskon: 0,
+            promoList: [{ id: "tanpa-promo", label: "Tanpa Promo" }, { id: "promo-1", label: "Promo 1" }],
+            mode: "timed",
+            hours: "1",
+            minutes: "12",
+            promoScheme: "tanpa-promo",
+        },
+        {
+            id: "7",
+            no_port: "PORT 7",
+            nama_port: "PS 7",
+            type: "",
+            nama_pelanggan: "Load Balancer",
+            duration: "00:00:00",
+            price: "0",
+            status: "off",
+            time: 0,
+            total: 0,
+            billing: 0,
+            subtotal: 0,
+            diskon: 0,
+            promoList: [{ id: "tanpa-promo", label: "Tanpa Promo" }],
+            mode: "timed",
+            hours: "0",
+            minutes: "0",
+            promoScheme: "tanpa-promo",
+        },
+    ]
+
+
+
+    const timeFormat = (t: number) => {
+        const h = Math.floor(t / 3600)
+        const m = Math.floor((t % 3600) / 60)
+        const s = t % 60
+        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+    }
+
+    const [portsData, setPortsData] = useState<Port[]>(ports)
     const [modalOpen, setModalOpen] = useState(false)
-    const [addModalOpen, setAddModalOpen] = useState(false)
-    const [selectedPort, setSelectedPort] = useState<typeof ports[0] | null>(null)
+    const [selectedPort, setSelectedPort] = useState<Port | null>(null)
     const [search, setSearch] = useState("")
-    const [sortKey, setSortKey] = useState<"name" | "duration" | "status" | "type" | null>(null)
-    const [sortBy, setSortBy] = useState<"name" | "type" | "active" | null>(null)
+    const [sortKey, setSortKey] = useState<"nama_pelanggan" | "duration" | null>(null)
     const [sortAsc, setSortAsc] = useState(true)
 
-    const ports = [
-        { id: "PORT 1", type: "t", name: "Web Server", duration: "02:15:30", price: "Rp 25.000", status: "on" },
-        { id: "PORT 2", type: "b", name: "Database Server", duration: "01:45:22", price: "Rp 20.000", status: "on" },
-        { id: "PORT 3", type: "", name: "API Gateway", duration: "00:30:15", price: "Rp 15.000", status: "off" },
-        { id: "PORT 4", type: "b", name: "File Server", duration: "03:22:45", price: "Rp 30.000", status: "on" },
-        { id: "PORT 5", type: "", name: "Mail Server", duration: "00:00:00", price: "Rp 10.000", status: "idle" },
-        { id: "PORT 6", type: "t", name: "Cache Server", duration: "01:12:33", price: "Rp 18.000", status: "paus" },
-        { id: "PORT 7", type: "", name: "Load Balancer", duration: "00:00:00", price: "Rp 12.000", status: "off" },
-        { id: "PORT 8", type: "t", name: "Monitoring", duration: "04:05:18", price: "Rp 35.000", status: "on" },
-    ]
+    // Toggle status port hanya untuk "on" dan "paus"
+    const togglePortStatus = (port: Port) => {
+        if (port.status === "idle") {
+            // Jika idle, hanya buka modal
+            setSelectedPort(port)
+            setModalOpen(true)
+            return
+        }
+
+        setPortsData(prev =>
+            prev.map(p => {
+                if (p.id === port.id) {
+                    if (p.status === "on") return { ...p, status: "paus" }
+                    if (p.status === "paus") return { ...p, status: "on" }
+                }
+                return p
+            })
+        )
+
+        // TODO: Jika mau dihubungkan ke DB
+        // Panggil API / mutation untuk update status port
+        // Contoh: api.updatePortStatus(port.id, newStatus)
+    }
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -49,38 +212,18 @@ export default function Dashboard() {
         }
     }
 
-    const promoList = [
-        { id: "tanpa-promo", label: "Tanpa Promo" },
-        { id: "promo-1", label: "Promo 1" },
-    ]
-
-    const timeFormat = (t: number) => {
-        const h = Math.floor(t / 3600)
-        const m = Math.floor((t % 3600) / 60)
-        const s = t % 60
-        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
-    }
-
-    // Sinkron dropdown ke sortKey
-    useEffect(() => {
-        if (sortBy) {
-            setSortKey(sortBy === "active" ? "status" : sortBy)
-            setSortAsc(true)
-        }
-    }, [sortBy])
-
-    // Filter & Sort
     const filteredPorts = useMemo(() => {
-        let data = ports.filter(p =>
-            p.name.toLowerCase().includes(search.toLowerCase()) ||
+        let data = portsData.filter(p =>
+            p.nama_port.toLowerCase().includes(search.toLowerCase()) ||
+            p.nama_pelanggan.toLowerCase().includes(search.toLowerCase()) ||
             p.status.toLowerCase().includes(search.toLowerCase()) ||
             p.type.toLowerCase().includes(search.toLowerCase())
         )
 
         if (sortKey) {
             data = data.sort((a, b) => {
-                let valA: string = a[sortKey]
-                let valB: string = b[sortKey]
+                let valA: string = (a as any)[sortKey]
+                let valB: string = (b as any)[sortKey]
                 if (sortKey === "duration") {
                     const parse = (t: string) => t.split(":").reduce((acc, v, i) => acc + parseInt(v) * (60 ** (2 - i)), 0)
                     return sortAsc ? parse(valA) - parse(valB) : parse(valB) - parse(valA)
@@ -90,13 +233,12 @@ export default function Dashboard() {
             })
         }
         return data
-    }, [search, sortKey, sortAsc])
+    }, [portsData, search, sortKey, sortAsc])
 
-    const toggleSort = (key: "name" | "duration") => {
+    const toggleSort = (key: "nama_pelanggan" | "duration") => {
         if (sortKey === key) setSortAsc(!sortAsc)
         else { setSortKey(key); setSortAsc(true) }
     }
-
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -113,19 +255,6 @@ export default function Dashboard() {
                             onChange={(e) => setSearch(e.target.value)}
                             className="border px-2 py-1 rounded w-full sm:w-64"
                         />
-                        <Select value={sortBy ?? ""} onValueChange={(val) => setSortBy(val as any)}>
-                            <SelectTrigger className="w-36">
-                                <SelectValue placeholder="Urutkan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="name">Nama</SelectItem>
-                                <SelectItem value="type">Tipe</SelectItem>
-                                <SelectItem value="active">Status Aktif</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button onClick={() => setAddModalOpen(true)}>
-                            <Plus className="w-4 h-4 mr-1" /> Tambah
-                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -133,8 +262,9 @@ export default function Dashboard() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Port</TableHead>
-                                <TableHead className="cursor-pointer" onClick={() => toggleSort("name")}>
-                                    Nama {sortKey === "name" ? (sortAsc ? <ChevronUp className="inline w-3 h-3" /> : <ChevronDown className="inline w-3 h-3" />) : null}
+                                <TableHead>Nama Port</TableHead>
+                                <TableHead className="cursor-pointer" onClick={() => toggleSort("nama_pelanggan")}>
+                                    Nama Pelanggan {sortKey === "nama_pelanggan" ? (sortAsc ? <ChevronUp className="inline w-3 h-3" /> : <ChevronDown className="inline w-3 h-3" />) : null}
                                 </TableHead>
                                 <TableHead className="cursor-pointer" onClick={() => toggleSort("duration")}>
                                     Durasi {sortKey === "duration" ? (sortAsc ? <ChevronUp className="inline w-3 h-3" /> : <ChevronDown className="inline w-3 h-3" />) : null}
@@ -147,9 +277,10 @@ export default function Dashboard() {
                         <TableBody>
                             {filteredPorts.map((port) => (
                                 <TableRow key={port.id}>
-                                    <TableCell className="font-medium">{port.id}</TableCell>
-                                    <TableCell>{port.name}</TableCell>
-                                    <TableCell className="font-mono">{port.type === "t" ? "-" + port.duration : port.duration}</TableCell>
+                                    <TableCell className="font-medium">{port.no_port}</TableCell>
+                                    <TableCell>{port.nama_port}</TableCell>
+                                    <TableCell>{port.nama_pelanggan}</TableCell>
+                                    <TableCell className="font-mono">{timeFormat(port.time)}</TableCell>
                                     <TableCell className="font-semibold">{port.price}</TableCell>
                                     <TableCell>{getStatusBadge(port.status)}</TableCell>
                                     <TableCell>
@@ -162,8 +293,18 @@ export default function Dashboard() {
                                             >
                                                 <Settings className="w-3 h-3 mr-1" /> Set/Lihat
                                             </Button>
-                                            <Button size="sm" className={cn(port.status === "on" ? "bg-red-400 hover:bg-red-500" : "bg-green-400 hover:bg-green-500")}>
-                                                {port.status === "on" ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                                            <Button
+                                                size="sm"
+                                                disabled={port.status === "off"}
+                                                className={cn(
+                                                    port.status === "on" ? "bg-yellow-400 hover:bg-yellow-500" :
+                                                        port.status === "idle" ? "bg-green-400 hover:bg-green-500" :
+                                                            port.status === "paus" ? "bg-gray-400 hover:bg-gray-500" :
+                                                                "bg-gray-300 cursor-not-allowed"
+                                                )}
+                                                onClick={() => togglePortStatus(port)}
+                                            >
+                                                {port.status === "on" || port.status === "paus" ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                                             </Button>
                                         </div>
                                     </TableCell>
@@ -178,16 +319,10 @@ export default function Dashboard() {
                 <ModalSetPort
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    stationName={selectedPort.name}
-                    statusPort={selectedPort.status === "on" ? "ON" : "OFF"}
-                    promoList={promoList}
-                    time={0}
-                    total={0}
-                    billing={0}
-                    subtotal={0}
-                    diskon={0}
-                    timeFormat={timeFormat}
+                    port={selectedPort}      // langsung kirim seluruh objek Port
+                    timeFormat={timeFormat}  // tetap sama
                 />
+
             )}
         </AppLayout>
     )
