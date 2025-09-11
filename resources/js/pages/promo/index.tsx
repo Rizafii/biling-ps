@@ -9,13 +9,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import AppLayout from "@/layouts/app-layout"
+import { dashboard } from "@/routes"
 import { type BreadcrumbItem } from "@/types"
 import { Head, useForm } from "@inertiajs/react"
 import { Edit, Eye, Plus, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
 
 const breadcrumbs: BreadcrumbItem[] = [
-    // { title: "Promo", href: dashboard().url },
+    { title: "Promo", href: dashboard().url },
 ]
 
 interface Promo {
