@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Play, Pause, FileText, RotateCcw } from "lucide-react"
+import { Play, Pause, FileText, RotateCcw, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Port {
@@ -17,7 +17,7 @@ interface Port {
     nama_pelanggan: string
     duration: string // "HH:MM:SS"
     price: string
-    status: "idle" | "on" | "paus" | "off"
+    status: "idle" | "on" | "pause" | "off"
     time: number
     total: number
     billing: number
@@ -34,10 +34,12 @@ interface ModalSetPortProps {
     isOpen: boolean
     onClose: () => void
     port: Port
+    onUpdatePort: (updated: Port) => void
     timeFormat: (t: number) => string
 }
 
-export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPortProps) {
+export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat }: ModalSetPortProps) {
+    const [confirmOpen, setConfirmOpen] = useState(false)
     const [portData, setPortData] = useState({
         customer: "",
         hourlyRate: "",
@@ -47,36 +49,159 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
         minutes: "",
     })
 
-    function formatMinutesToHHMMSS(totalMinutes: number): string {
-        const hours = Math.floor(totalMinutes / 60)
-        const minutes = totalMinutes % 60
-        const seconds = 0 // karena inputnya menit, detik default 0
-
-        const hh = hours.toString().padStart(2, "0")
-        const mm = minutes.toString().padStart(2, "0")
-        const ss = seconds.toString().padStart(2, "0")
-
-        return `${hh}:${mm}:${ss}`
+    // ✅ Reset form data when modal opens
+    const resetFormData = () => {
+        setPortData({
+            customer: "",
+            hourlyRate: "",
+            promoScheme: "tanpa-promo", // Set default promo
+            mode: "timed",
+            hours: "",
+            minutes: "",
+        })
     }
 
     useEffect(() => {
         if (isOpen && port) {
-            setPortData({
-                customer: port.nama_pelanggan || "",
-                hourlyRate: port.price || "",
-                promoScheme: port.promoScheme || "",
-                mode: port.mode,
-                hours: port.hours || "",
-                minutes: port.minutes || "",
-            })
+            if (port.status === "idle") {
+                // ✅ Jika port idle, reset form ke kosong
+                resetFormData()
+            } else {
+                // ✅ Jika port sedang aktif, ambil data dari port
+                setPortData({
+                    customer: port.nama_pelanggan || "",
+                    hourlyRate: port.price || "",
+                    promoScheme: port.promoScheme || "tanpa-promo",
+                    mode: port.mode,
+                    hours: port.hours || "",
+                    minutes: port.minutes || "",
+                })
+            }
         }
     }, [isOpen, port])
 
-    const handleStart = () => console.log("Start Port:", portData)
-    const handlePause = () => console.log("Pause Port:", portData)
-    const handleFinish = () => console.log("Finish & Nota:", portData)
-    const handleReset = () =>
-        setPortData({ customer: "", hourlyRate: "", promoScheme: "", mode: "timed", hours: "", minutes: "" })
+    // ✅ Konversi jam dan menit ke detik (bukan menit)
+    function jamMenitToDetik(hours: string, minutes: string): number {
+        const h = parseInt(hours || "0", 10)
+        const m = parseInt(minutes || "0", 10)
+        return (h * 3600) + (m * 60) // Convert to seconds
+    }
+
+    // ✅ Hitung total berdasarkan tarif per jam
+    function hitungTotal(hourlyRate: string, timeInSeconds: number, mode: string): number {
+        const tarif = parseInt(hourlyRate.replace(/\./g, "")) || 0
+
+        if (mode === "timed") {
+            return 0 // Untuk timed, total dihitung saat countdown
+        } else {
+            // Untuk bebas, hitung berdasarkan waktu yang sudah berjalan
+            const jam = timeInSeconds / 3600 // Convert seconds to hours
+            let total = Math.round(tarif * jam)
+
+            // Pembulatan ke atas ke 100 terdekat
+            const sisa = total % 100
+            if (sisa !== 0) total = total + (100 - sisa)
+
+            return total
+        }
+    }
+
+    const handleStart = () => {
+        if (!portData.customer.trim()) {
+            alert("Nama pelanggan wajib diisi")
+            return
+        }
+        if (!portData.hourlyRate) {
+            alert("Tarif per jam wajib diisi")
+            return
+        }
+
+        let totalSeconds = 0
+        let billingSeconds = 0
+
+        if (portData.mode === "timed") {
+            totalSeconds = jamMenitToDetik(portData.hours, portData.minutes)
+            billingSeconds = totalSeconds
+            if (totalSeconds <= 0) {
+                alert("Jam atau menit harus diisi untuk mode timed")
+                return
+            }
+        }
+
+        const updatedPort: Port = {
+            ...port,
+            nama_pelanggan: portData.customer,
+            price: portData.hourlyRate,
+            promoScheme: portData.promoScheme,
+            mode: portData.mode,
+            hours: portData.hours,
+            minutes: portData.minutes,
+            type: portData.mode === "timed" ? "t" : "b",
+            status: "on",
+            time: totalSeconds, // Time in seconds
+            billing: billingSeconds,
+            total: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
+            subtotal: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
+            diskon: 0,
+        }
+
+        onUpdatePort(updatedPort)
+        onClose()
+    }
+
+    const handlePause = () => {
+        onUpdatePort({
+            ...port,
+            status: port.status === "pause" ? "on" : "pause"
+        })
+    }
+
+    const handleFinish = () => {
+        // ✅ Set port ke idle dan reset semua data
+        const finishedPort: Port = {
+            ...port,
+            nama_pelanggan: "",
+            price: "",
+            status: "idle",
+            time: 0,
+            billing: 0,
+            total: 0,
+            subtotal: 0,
+            diskon: 0,
+            hours: "0",
+            minutes: "0",
+            type: "",
+            promoScheme: "tanpa-promo",
+            mode: "timed",
+        }
+
+        onUpdatePort(finishedPort)
+        resetFormData() // ✅ Reset form juga
+        onClose()
+    }
+
+    const handleReset = () => {
+        // ✅ Reset port dan form data
+        const resetPort: Port = {
+            ...port,
+            nama_pelanggan: "",
+            price: "",
+            status: "idle",
+            time: 0,
+            billing: 0,
+            total: 0,
+            subtotal: 0,
+            diskon: 0,
+            hours: "0",
+            minutes: "0",
+            type: "",
+            promoScheme: "tanpa-promo",
+            mode: "timed",
+        }
+
+        onUpdatePort(resetPort)
+        resetFormData() // ✅ Reset form juga
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -95,11 +220,11 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
                     <div className="flex justify-between items-center">
                         <div>
                             <Label className="text-sm text-gray-600">Durasi</Label>
-                            <div className="text-2xl font-mono font-bold">{formatMinutesToHHMMSS(port.time)}</div>
+                            <div className="text-2xl font-mono font-bold">{timeFormat(port.time)}</div>
                         </div>
                         <div className="text-right">
                             <Label className="text-sm text-gray-600">Total</Label>
-                            <div className="text-2xl font-bold">Rp {port.total}</div>
+                            <div className="text-2xl font-bold">Rp {port.total.toLocaleString('id-ID')}</div>
                         </div>
                     </div>
 
@@ -123,10 +248,13 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
                                 <Input
                                     id="rate"
                                     type="text"
+                                    placeholder="0"
                                     value={portData.hourlyRate}
-                                    onChange={(e) =>
-                                        setPortData(prev => ({ ...prev, hourlyRate: e.target.value.replace(/[^0-9]/g, "") }))
-                                    }
+                                    onChange={(e) => {
+                                        const raw = e.target.value.replace(/\D/g, "")
+                                        const formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                                        setPortData(prev => ({ ...prev, hourlyRate: formatted }))
+                                    }}
                                     disabled={port.status !== "idle"}
                                     className={cn(
                                         "border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-l-none",
@@ -155,7 +283,7 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
                         </Select>
                     </div>
 
-                    {/* Time Input */}
+                    {/* Time Input - ✅ Fixed: Input sekarang benar */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="hours">Jam</Label>
@@ -163,9 +291,13 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
                                 id="hours"
                                 type="text"
                                 inputMode="numeric"
+                                placeholder="0"
                                 maxLength={2}
                                 value={portData.hours}
-                                onChange={(e) => setPortData(prev => ({ ...prev, hours: e.target.value.replace(/[^0-9]/g, "") }))}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/[^0-9]/g, "")
+                                    setPortData(prev => ({ ...prev, hours: value }))
+                                }}
                                 disabled={portData.mode === "bebas" || port.status !== "idle"}
                                 className={portData.mode === "bebas" || port.status !== "idle" ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
                             />
@@ -176,9 +308,17 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
                                 id="minutes"
                                 type="text"
                                 inputMode="numeric"
+                                placeholder="0"
                                 maxLength={2}
                                 value={portData.minutes}
-                                onChange={(e) => setPortData(prev => ({ ...prev, minutes: e.target.value.replace(/[^0-9]/g, "") }))}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/[^0-9]/g, "")
+                                    // ✅ Validasi menit tidak lebih dari 59
+                                    const numValue = parseInt(value || "0", 10)
+                                    if (numValue <= 59) {
+                                        setPortData(prev => ({ ...prev, minutes: value }))
+                                    }
+                                }}
                                 disabled={portData.mode === "bebas" || port.status !== "idle"}
                                 className={portData.mode === "bebas" || port.status !== "idle" ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}
                             />
@@ -219,10 +359,21 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
                             </Button>
                         ) : (
                             <>
-                                <Button onClick={handlePause} className="flex-1 bg-yellow-500 hover:bg-yellow-600">
-                                    <Pause className="w-4 h-4 mr-2" />
-                                    Pause
-                                </Button>
+                                {port.status === "pause" ? (
+                                    <Button onClick={handlePause} className="flex-1 bg-green-500 hover:bg-green-600">
+                                        <Play className="w-4 h-4 mr-2" />
+                                        Resume
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        onClick={() => setConfirmOpen(true)}
+                                        className="flex-1 bg-yellow-500 hover:bg-yellow-600"
+                                    >
+                                        <Pause className="w-4 h-4 mr-2" />
+                                        Pause
+                                    </Button>
+
+                                )}
                                 <Button onClick={handleFinish} className="flex-1 bg-green-500 hover:bg-green-600">
                                     <FileText className="w-4 h-4 mr-2" />
                                     Selesai & Nota
@@ -237,12 +388,56 @@ export function ModalSetPort({ isOpen, onClose, port, timeFormat }: ModalSetPort
 
                     {/* Footer Info */}
                     <div className="flex justify-between text-sm text-gray-600 pt-2 border-t">
-                        <span>Billable: {port.billing} m</span>
-                        <span>Subtotal: Rp {port.subtotal}</span>
-                        <span>Diskon: Rp {port.diskon}</span>
+                        <span>Billable: {Math.floor(port.billing / 60)}:{(port.billing % 60).toString().padStart(2, '0')}</span>
+                        <span>Subtotal: Rp {port.subtotal.toLocaleString('id-ID')}</span>
+                        <span>Diskon: Rp {port.diskon.toLocaleString('id-ID')}</span>
                     </div>
                 </div>
             </DialogContent>
+
+            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-full bg-yellow-50 p-2">
+                                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                            </div>
+                            <DialogTitle className="text-lg font-semibold">
+                                Konfirmasi Pause
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="mt-3 text-sm text-muted-foreground">
+                            Apakah Anda yakin ingin mem-pause {port.no_port}?
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="mt-4 rounded-md border border-yellow-100 bg-orange-50 p-3">
+                        <p className="text-sm font-medium text-yellow-800">Peringatan</p>
+                        <p className="mt-1 text-sm text-yellow-700">
+                            Jika <span className="font-semibold">dipause</span>, maka relay akan
+                            <span className="font-semibold text-red-700"> mati</span> yang berakibat listrik
+                            <span className="font-semibold text-red-700"> mati</span>.
+                        </p>
+                    </div>
+
+                    <DialogFooter className="mt-6">
+                        <div className="flex w-full justify-end gap-2">
+                            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    onUpdatePort({ ...port, status: "pause" })
+                                    setConfirmOpen(false)
+                                }}
+                            >
+                                Lanjutkan
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </Dialog>
     )
 }
