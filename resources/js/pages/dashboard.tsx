@@ -143,6 +143,52 @@ export default function Dashboard() {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     };
 
+    // Function untuk mengontrol relay dari dashboard
+    const controlRelay = async (deviceId: string, pin: number, status: boolean) => {
+        try {
+            const response = await fetch('/api/relay/control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    pin: pin,
+                    status: status, // true = aliran ON, false = aliran OFF
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('Relay controlled successfully:', result);
+                // Update port status immediately untuk feedback visual
+                setPortsData((prev) =>
+                    prev.map((port) => {
+                        if (port.device === deviceId && port.pin === pin) {
+                            return {
+                                ...port,
+                                status: status ? 'on' : 'idle', // Update visual status
+                            };
+                        }
+                        return port;
+                    }),
+                );
+            } else {
+                console.error('Failed to control relay:', result.message);
+            }
+        } catch (error) {
+            console.error('Error controlling relay:', error);
+        }
+    };
+
     useEffect(() => {
         const interval = setInterval(() => {
             setPortsData((prev) =>
@@ -205,7 +251,7 @@ export default function Dashboard() {
     }
 
     // Toggle status port hanya untuk "on" dan "pause"
-    const togglePortStatus = (port: Port) => {
+    const togglePortStatus = async (port: Port) => {
         if (port.status === 'idle') {
             // Jika idle, hanya buka modal
             setSelectedPort(port);
@@ -213,23 +259,54 @@ export default function Dashboard() {
             return;
         }
 
-        setPortsData((prev) =>
-            prev.map((p) => {
-                if (p.id === port.id) {
-                    if (p.status === 'on') {
-                        setModalConfirmOpen(false);
-
+        if (port.status === 'on') {
+            // Jika ON, pause dahulu (hanya update UI, tidak control relay)
+            setPortsData((prev) =>
+                prev.map((p) => {
+                    if (p.id === port.id) {
                         return { ...p, status: 'pause' };
                     }
-                    if (p.status === 'pause') return { ...p, status: 'on' };
-                }
-                return p;
-            }),
-        );
+                    return p;
+                }),
+            );
+        } else if (port.status === 'pause') {
+            // Jika PAUSE, resume ke ON (tidak control relay karena relay tetap on)
+            setPortsData((prev) =>
+                prev.map((p) => {
+                    if (p.id === port.id) {
+                        return { ...p, status: 'on' };
+                    }
+                    return p;
+                }),
+            );
+        }
+    };
 
-        // TODO: Jika mau dihubungkan ke DB
-        // Panggil API / mutation untuk update status port
-        // Contoh: api.updatePortStatus(port.id, newStatus)
+    // Function untuk benar-benar mematikan relay (stop billing)
+    const stopBilling = async (port: Port) => {
+        if (port.pin && port.device) {
+            // Control relay untuk OFF (status false = aliran mati)
+            await controlRelay(port.device, port.pin, false);
+
+            // Update UI status
+            setPortsData((prev) =>
+                prev.map((p) => {
+                    if (p.id === port.id) {
+                        return {
+                            ...p,
+                            status: 'idle',
+                            type: '',
+                            nama_pelanggan: '',
+                            time: 0,
+                            billing: 0,
+                            total: 0,
+                            subtotal: 0,
+                        };
+                    }
+                    return p;
+                }),
+            );
+        }
     };
 
     const handleActionClick = (port: Port) => {
@@ -246,7 +323,7 @@ export default function Dashboard() {
         }
 
         if (port.status === 'pause') {
-            togglePortStatus({ ...port, status: 'on' }); // langsung play lagi
+            togglePortStatus(port); // langsung resume
             return;
         }
     };
@@ -444,6 +521,7 @@ export default function Dashboard() {
                     port={selectedPort} // langsung kirim seluruh objek Port
                     timeFormat={timeFormat} // tetap sama
                     onUpdatePort={handleUpdatePort}
+                    controlRelay={controlRelay} // Pass function controlRelay
                 />
             )}
             {selectedPort && (
@@ -454,20 +532,22 @@ export default function Dashboard() {
                                 <div className="rounded-full bg-yellow-50 p-2">
                                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
                                 </div>
-                                <DialogTitle className="text-lg font-semibold">Konfirmasi Pause D</DialogTitle>
+                                <DialogTitle className="text-lg font-semibold">Konfirmasi Aksi {selectedPort.no_port}</DialogTitle>
                             </div>
                             <DialogDescription className="mt-3 text-sm text-muted-foreground">
-                                Apakah Anda yakin ingin mem-pause {selectedPort.no_port}?
+                                Pilih aksi yang ingin dilakukan pada {selectedPort.no_port}:
                             </DialogDescription>
                         </DialogHeader>
 
-                        <div className="mt-4 rounded-md border border-yellow-100 bg-orange-50 p-3">
-                            <p className="text-sm font-medium text-yellow-800">Peringatan</p>
-                            <p className="mt-1 text-sm text-yellow-700">
-                                Jika <span className="font-semibold">dipause</span>, maka relay akan
-                                <span className="font-semibold text-red-700"> mati</span> yang berakibat listrik
-                                <span className="font-semibold text-red-700"> mati</span>.
-                            </p>
+                        <div className="mt-4 space-y-3">
+                            <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
+                                <p className="text-sm font-medium text-blue-800">Pause</p>
+                                <p className="mt-1 text-sm text-blue-700">Hanya menghentikan waktu billing, relay tetap ON (listrik tetap nyala).</p>
+                            </div>
+                            <div className="rounded-md border border-red-100 bg-red-50 p-3">
+                                <p className="text-sm font-medium text-red-800">Stop & Matikan Relay</p>
+                                <p className="mt-1 text-sm text-red-700">Menghentikan billing dan mematikan relay (listrik mati).</p>
+                            </div>
                         </div>
 
                         <DialogFooter className="mt-6">
@@ -476,14 +556,26 @@ export default function Dashboard() {
                                     Batal
                                 </Button>
                                 <Button
+                                    variant="outline"
                                     onClick={() => {
                                         if (selectedPort) {
-                                            setPortsData((prev) => prev.map((p) => (p.id === selectedPort.id ? { ...p, status: 'pause' } : p)));
+                                            togglePortStatus(selectedPort); // Pause tanpa control relay
                                         }
                                         setModalConfirmOpen(false);
                                     }}
                                 >
-                                    Lanjutkan
+                                    Pause
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => {
+                                        if (selectedPort) {
+                                            stopBilling(selectedPort); // Stop dan control relay OFF
+                                        }
+                                        setModalConfirmOpen(false);
+                                    }}
+                                >
+                                    Stop & Matikan
                                 </Button>
                             </div>
                         </DialogFooter>

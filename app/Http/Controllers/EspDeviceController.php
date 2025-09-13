@@ -69,7 +69,6 @@ class EspDeviceController extends Controller
             'timestamp' => 'nullable|numeric',
             'ip_address' => 'nullable|string|ip',
             'status' => 'nullable|string',
-            'relays' => 'nullable|array',
         ]);
 
         // Find device (tidak auto-create)
@@ -90,16 +89,10 @@ class EspDeviceController extends Controller
             'last_heartbeat' => now(),
         ]);
 
-        // Update relay states if provided (hanya update, tidak create baru)
-        if (isset($validated['relays']) && is_array($validated['relays'])) {
-            $this->updateRelayStates($validated['device_id'], $validated['relays']);
-        }
-
         // Log heartbeat for debugging
         \Log::info("Heartbeat received from device: {$validated['device_id']}", [
             'ip_address' => $validated['ip_address'] ?? 'unknown',
             'timestamp' => $validated['timestamp'] ?? 'unknown',
-            'relays_count' => count($validated['relays'] ?? []),
         ]);
 
         // Return success response
@@ -108,7 +101,6 @@ class EspDeviceController extends Controller
             'message' => 'Heartbeat received successfully',
             'device_id' => $device->device_id,
             'server_time' => now()->toISOString(),
-            'relays' => [], // For future relay control implementation
         ]);
     }
 
@@ -255,25 +247,6 @@ class EspDeviceController extends Controller
                 'nama_relay' => 'PORT ' . ($index + 1),
                 'status' => false, // Default OFF
             ]);
-        }
-    }
-
-    /**
-     * Update relay states when receiving heartbeat from ESP32
-     * Hanya update status relay yang sudah ada, tidak create baru
-     */
-    private function updateRelayStates(string $deviceId, array $relays)
-    {
-        foreach ($relays as $relay) {
-            $pin = $relay['pin'] ?? null;
-            $state = $relay['state'] ?? false;
-
-            if ($pin) {
-                // Update relay yang sudah ada berdasarkan device_id dan pin
-                EspRelay::where('device_id', $deviceId)
-                    ->where('pin', $pin)
-                    ->update(['status' => $state]);
-            }
         }
     }
 

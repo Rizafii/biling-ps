@@ -41,9 +41,10 @@ interface ModalSetPortProps {
     port: Port;
     onUpdatePort: (updated: Port) => void;
     timeFormat: (t: number) => string;
+    controlRelay?: (deviceId: string, pin: number, status: boolean) => Promise<void>;
 }
 
-export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat }: ModalSetPortProps) {
+export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, controlRelay }: ModalSetPortProps) {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [portData, setPortData] = useState({
         customer: '',
@@ -111,7 +112,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat }
         }
     }
 
-    const handleStart = () => {
+    const handleStart = async () => {
         if (!portData.customer.trim()) {
             alert('Nama pelanggan wajib diisi');
             return;
@@ -129,6 +130,17 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat }
             billingSeconds = totalSeconds;
             if (totalSeconds <= 0) {
                 alert('Jam atau menit harus diisi untuk mode timed');
+                return;
+            }
+        }
+
+        // Control relay ON (status true = aliran nyala)
+        if (controlRelay && port.pin && port.device) {
+            try {
+                await controlRelay(port.device, port.pin, true);
+            } catch (error) {
+                console.error('Error controlling relay:', error);
+                alert('Gagal mengontrol relay. Coba lagi.');
                 return;
             }
         }
@@ -161,7 +173,18 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat }
         });
     };
 
-    const handleFinish = () => {
+    const handleFinish = async () => {
+        // Control relay OFF (status false = aliran mati)
+        if (controlRelay && port.pin && port.device) {
+            try {
+                await controlRelay(port.device, port.pin, false);
+            } catch (error) {
+                console.error('Error controlling relay:', error);
+                alert('Gagal mengontrol relay. Coba lagi.');
+                return;
+            }
+        }
+
         // ✅ Set port ke idle dan reset semua data
         const finishedPort: Port = {
             ...port,
