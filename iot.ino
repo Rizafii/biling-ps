@@ -12,8 +12,8 @@ const int numRelays = 8;
 // WiFi configuration
 String ssid = "";
 String password = "";
-String serverURL = "http://192.168.1.100"; // Change to your Laravel server IP
-String deviceID = "ESP32_001"; // Unique device identifier
+String serverURL = "http://10.194.224.133:8000"; // Change to your Laravel server IP
+String deviceID = "SS1"; // Unique device identifier
 
 // API endpoints configuration
 String heartbeatEndpoint = "/api/esp/heartbeat";
@@ -25,9 +25,9 @@ const char* ap_password = "12345678";
 
 // Timing configuration
 unsigned long lastHeartbeat = 0;
-unsigned long heartbeatInterval = 5000; // 5 seconds
+unsigned long heartbeatInterval = 500; // 5ms
 unsigned long lastRelayUpdate = 0;
-unsigned long relayUpdateInterval = 2000; // 2 seconds
+unsigned long relayUpdateInterval = 200; // 2ms
 
 // Web server for configuration
 WebServer server(80);
@@ -132,12 +132,25 @@ void loadWiFiCredentials() {
     serverURL += c;
   }
   
+  // Read Device ID
+  deviceID = "";
+  for (int i = 196; i < 246; i++) {
+    char c = EEPROM.read(i);
+    if (c == 0) break;
+    deviceID += c;
+  }
+  
   if (serverURL.length() == 0) {
     serverURL = "http://192.168.1.100"; // Default server URL
   }
   
+  if (deviceID.length() == 0) {
+    deviceID = "SS1"; // Default device ID
+  }
+  
   Serial.println("SSID: " + ssid);
   Serial.println("Server URL: " + serverURL);
+  Serial.println("Device ID: " + deviceID);
 }
 
 void saveWiFiCredentials() {
@@ -163,8 +176,13 @@ void saveWiFiCredentials() {
     EEPROM.write(96 + i, serverURL[i]);
   }
   
+  // Write Device ID
+  for (int i = 0; i < deviceID.length(); i++) {
+    EEPROM.write(196 + i, deviceID[i]);
+  }
+  
   EEPROM.commit();
-  Serial.println("WiFi credentials saved");
+  Serial.println("WiFi credentials and Device ID saved");
 }
 
 void connectToWiFi() {
@@ -231,48 +249,83 @@ void handleConfigPage() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<title>ESP32 Configuration</title>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<style>body{font-family:Arial;margin:40px auto;max-width:600px;padding:20px;}";
-  html += "input{width:100%;padding:10px;margin:10px 0;box-sizing:border-box;}";
-  html += "button{background-color:#4CAF50;color:white;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%;}";
-  html += ".relay{margin:10px 0;padding:10px;border:1px solid #ddd;}</style></head><body>";
+  html += "<style>body{font-family:Arial;margin:40px auto;max-width:600px;padding:20px;background-color:#f5f5f5;}";
+  html += ".container{background:white;padding:30px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);}";
+  html += "h1{color:#333;text-align:center;margin-bottom:30px;}";
+  html += "h2{color:#555;border-bottom:2px solid #4CAF50;padding-bottom:10px;}";
+  html += "label{display:block;margin-top:15px;margin-bottom:5px;font-weight:bold;color:#555;}";
+  html += "input{width:100%;padding:12px;margin-bottom:15px;box-sizing:border-box;border:1px solid #ddd;border-radius:4px;font-size:16px;}";
+  html += "input:focus{border-color:#4CAF50;outline:none;}";
+  html += "button{background-color:#4CAF50;color:white;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%;border-radius:4px;font-size:16px;}";
+  html += "button:hover{background-color:#45a049;}";
+  html += ".relay{margin:10px 0;padding:15px;border:1px solid #ddd;border-radius:4px;background:#f9f9f9;}";
+  html += ".status-info{background:#e8f5e8;padding:10px;border-radius:4px;margin:10px 0;}";
+  html += ".info-label{font-weight:bold;color:#333;}</style></head><body>";
   
-  html += "<h1>ESP32 Relay Controller</h1>";
+  html += "<div class='container'>";
+  html += "<h1>🔌 ESP32 Relay Controller</h1>";
   
   if (configMode) {
-    html += "<h2>WiFi Configuration</h2>";
+    html += "<h2>📶 WiFi Configuration</h2>";
     html += "<form action='/config' method='POST'>";
-    html += "SSID: <input type='text' name='ssid' value='" + ssid + "'><br>";
-    html += "Password: <input type='password' name='password' value='" + password + "'><br>";
-    html += "Server URL: <input type='text' name='server' value='" + serverURL + "'><br>";
-    html += "<button type='submit'>Save & Connect</button>";
+    html += "<label for='ssid'>WiFi Network (SSID):</label>";
+    html += "<input type='text' id='ssid' name='ssid' value='" + ssid + "' placeholder='Enter WiFi network name' required>";
+    html += "<label for='password'>WiFi Password:</label>";
+    html += "<input type='password' id='password' name='password' value='" + password + "' placeholder='Enter WiFi password'>";
+    html += "<label for='server'>Server URL:</label>";
+    html += "<input type='text' id='server' name='server' value='" + serverURL + "' placeholder='http://192.168.1.100:8000' required>";
+    html += "<label for='device_id'>Device ID:</label>";
+    html += "<input type='text' id='device_id' name='device_id' value='" + deviceID + "' placeholder='Enter unique device ID (e.g., SS1, SS2)' required>";
+    html += "<button type='submit'>💾 Save & Connect</button>";
     html += "</form>";
-  } else {
-    html += "<h2>Device Status</h2>";
-    html += "<p><strong>WiFi:</strong> Connected (" + WiFi.localIP().toString() + ")</p>";
-    html += "<p><strong>Server:</strong> " + serverURL + "</p>";
-    html += "<p><strong>Device ID:</strong> " + deviceID + "</p>";
-    html += "<p><strong>Heartbeat Endpoint:</strong> " + heartbeatEndpoint + "</p>";
-    html += "<p><strong>Relay Endpoint:</strong> " + relayEndpoint + "</p>";
-    html += "<p><strong>Last Heartbeat:</strong> " + String((millis() - lastHeartbeat) / 1000) + " seconds ago</p>";
     
-    html += "<h2>Relay Control</h2>";
+    html += "<div style='margin-top:30px;padding:15px;background:#fff3cd;border:1px solid #ffeaa7;border-radius:4px;'>";
+    html += "<strong>ℹ️ Instructions:</strong><br>";
+    html += "1. Enter your WiFi network name and password<br>";
+    html += "2. Set the server URL (include http:// and port)<br>";
+    html += "3. Choose a unique Device ID for this controller<br>";
+    html += "4. Click Save & Connect to apply settings";
+    html += "</div>";
+  } else {
+    html += "<h2>📊 Device Status</h2>";
+    html += "<div class='status-info'>";
+    html += "<p><span class='info-label'>WiFi Status:</span> ✅ Connected (" + WiFi.localIP().toString() + ")</p>";
+    html += "<p><span class='info-label'>Server URL:</span> " + serverURL + "</p>";
+    html += "<p><span class='info-label'>Device ID:</span> " + deviceID + "</p>";
+    html += "<p><span class='info-label'>Heartbeat Endpoint:</span> " + heartbeatEndpoint + "</p>";
+    html += "<p><span class='info-label'>Relay Endpoint:</span> " + relayEndpoint + "</p>";
+    html += "<p><span class='info-label'>Last Heartbeat:</span> " + String((millis() - lastHeartbeat) / 1000) + " seconds ago</p>";
+    html += "</div>";
+    
+    html += "<h2>🎛️ Relay Control</h2>";
     for (int i = 0; i < numRelays; i++) {
       html += "<div class='relay'>";
-      html += "Relay " + String(i + 1) + " (Pin " + String(relayPins[i]) + "): ";
-      html += "<button onclick='toggleRelay(" + String(i) + ")'>";
-      html += relayStates[i] ? "ON" : "OFF";
+      html += "<span class='info-label'>Relay " + String(i + 1) + " (Pin " + String(relayPins[i]) + "):</span> ";
+      html += "<button onclick='toggleRelay(" + String(i) + ")' style='width:80px;margin-left:10px;";
+      html += relayStates[i] ? "background-color:#4CAF50;" : "background-color:#f44336;";
+      html += "'>";
+      html += relayStates[i] ? "🟢 ON" : "🔴 OFF";
       html += "</button></div>";
     }
     
     html += "<script>";
-    html += "function toggleRelay(pin) {";
-    html += "  fetch('/relay', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'relay=' + pin + '&state=' + (document.querySelector('button').textContent === 'OFF' ? '1' : '0')});";
+    html += "function toggleRelay(relayIndex) {";
+    html += "  var newState = document.querySelectorAll('button')[relayIndex + 1].textContent.includes('OFF') ? '1' : '0';";
+    html += "  fetch('/relay', {";
+    html += "    method: 'POST',";
+    html += "    headers: {'Content-Type': 'application/x-www-form-urlencoded'},";
+    html += "    body: 'relay=' + relayIndex + '&state=' + newState";
+    html += "  });";
     html += "  setTimeout(() => location.reload(), 500);";
     html += "}";
     html += "</script>";
+    
+    html += "<div style='margin-top:20px;text-align:center;'>";
+    html += "<button onclick='location.reload()' style='width:200px;background-color:#2196F3;'>🔄 Refresh Status</button>";
+    html += "</div>";
   }
   
-  html += "</body></html>";
+  html += "</div></body></html>";
   
   server.send(200, "text/html", html);
 }
@@ -281,10 +334,45 @@ void handleConfigSave() {
   ssid = server.arg("ssid");
   password = server.arg("password");
   serverURL = server.arg("server");
+  deviceID = server.arg("device_id");
+  
+  // Validate inputs
+  if (ssid.length() == 0 || serverURL.length() == 0 || deviceID.length() == 0) {
+    String errorHtml = "<!DOCTYPE html><html><head><title>Configuration Error</title>";
+    errorHtml += "<meta name='viewport' content='width=device-width, initial-scale=1'></head><body>";
+    errorHtml += "<div style='font-family:Arial;margin:40px auto;max-width:600px;padding:20px;background:white;border-radius:8px;'>";
+    errorHtml += "<h1 style='color:#f44336;'>❌ Configuration Error</h1>";
+    errorHtml += "<p>Please fill in all required fields:</p>";
+    errorHtml += "<ul>";
+    if (ssid.length() == 0) errorHtml += "<li>WiFi Network (SSID)</li>";
+    if (serverURL.length() == 0) errorHtml += "<li>Server URL</li>";
+    if (deviceID.length() == 0) errorHtml += "<li>Device ID</li>";
+    errorHtml += "</ul>";
+    errorHtml += "<button onclick='history.back()' style='padding:10px 20px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;'>← Go Back</button>";
+    errorHtml += "</div></body></html>";
+    
+    server.send(400, "text/html", errorHtml);
+    return;
+  }
   
   saveWiFiCredentials();
   
-  server.send(200, "text/html", "<html><body><h1>Configuration Saved!</h1><p>Restarting...</p></body></html>");
+  String successHtml = "<!DOCTYPE html><html><head><title>Configuration Saved</title>";
+  successHtml += "<meta name='viewport' content='width=device-width, initial-scale=1'></head><body>";
+  successHtml += "<div style='font-family:Arial;margin:40px auto;max-width:600px;padding:20px;background:white;border-radius:8px;text-align:center;'>";
+  successHtml += "<h1 style='color:#4CAF50;'>✅ Configuration Saved!</h1>";
+  successHtml += "<p><strong>WiFi Network:</strong> " + ssid + "</p>";
+  successHtml += "<p><strong>Server URL:</strong> " + serverURL + "</p>";
+  successHtml += "<p><strong>Device ID:</strong> " + deviceID + "</p>";
+  successHtml += "<p>The device is restarting and will connect to WiFi...</p>";
+  successHtml += "<div style='margin:20px 0;'>";
+  successHtml += "<div style='border:2px solid #4CAF50;border-radius:50%;width:50px;height:50px;margin:0 auto;position:relative;'>";
+  successHtml += "<div style='border-top:2px solid transparent;border-radius:50%;width:46px;height:46px;animation:spin 1s linear infinite;'></div>";
+  successHtml += "</div></div>";
+  successHtml += "<style>@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>";
+  successHtml += "</div></body></html>";
+  
+  server.send(200, "text/html", successHtml);
   
   delay(2000);
   ESP.restart();

@@ -12,15 +12,17 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { AlertTriangle, ChevronDown, ChevronUp, Pause, Play, Settings } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard().url }];
 
 interface Port {
     id: string;
     device: string;
+    device_name?: string;
     no_port: string;
     nama_port: string;
+    pin?: number;
     type: string; // t = timed, b = bebas, "" = undefined
     nama_pelanggan: string;
     duration: string; // "HH:MM:SS"
@@ -36,158 +38,10 @@ interface Port {
     hours: string;
     minutes: string;
     promoScheme: string;
+    device_status?: 'online' | 'offline';
+    last_heartbeat?: string;
 }
 export default function Dashboard() {
-    const dataAwal: Port[] = [
-        {
-            id: '1',
-            device: 'SS1',
-            no_port: 'PORT 1',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'idle',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-        {
-            id: '2',
-            device: 'SS1',
-            no_port: 'PORT 2',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'idle',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-        {
-            id: '3',
-            device: 'SS1',
-            no_port: 'PORT 3',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'idle',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-        {
-            id: '5',
-            device: 'SS1',
-            no_port: 'PORT 5',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'idle',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-        {
-            id: '6',
-            device: 'SS1',
-            no_port: 'PORT 6',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'idle',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-        {
-            id: '7',
-            device: 'SS1',
-            no_port: 'PORT 7',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'idle',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-        {
-            id: '8',
-            device: 'SS1',
-            no_port: 'PORT 8',
-            nama_port: '',
-            type: '',
-            nama_pelanggan: '',
-            duration: '00:00:00',
-            price: '',
-            status: 'off',
-            time: 0,
-            total: 0,
-            billing: 0,
-            subtotal: 0,
-            diskon: 0,
-            promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-            mode: 'timed',
-            hours: '0',
-            minutes: '0',
-            promoScheme: 'tanpa-promo',
-        },
-    ];
-
     const timeFormat = (t: number) => {
         const h = Math.floor(t / 3600);
         const m = Math.floor((t % 3600) / 60);
@@ -195,14 +49,95 @@ export default function Dashboard() {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const [portsData, setPortsData] = useState<Port[]>(dataAwal);
+    const [portsData, setPortsData] = useState<Port[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
-    const [modalConfirmOpen, setModalConfirmOpen] = useState(true);
+    const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [sortKey, setSortKey] = useState<'nama_pelanggan' | 'duration' | null>(null);
     const [sortAsc, setSortAsc] = useState(true);
-
     const [selectedPort, setSelectedPort] = useState<Port | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+    // Fetch ports data from API
+    const fetchPorts = useCallback(
+        async (showLoading = false) => {
+            try {
+                if (showLoading) {
+                    setIsLoading(true);
+                }
+
+                const response = await fetch('/api/ports', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && Array.isArray(result.ports)) {
+                    // Merge with existing ports data to preserve user-set values
+                    const newPorts = result.ports.map((apiPort: any) => {
+                        const existingPort = portsData.find((p) => p.id === apiPort.id);
+
+                        if (existingPort) {
+                            // Keep user-set values but update device status
+                            return {
+                                ...existingPort,
+                                device: apiPort.device,
+                                device_name: apiPort.device_name,
+                                device_status: apiPort.device_status,
+                                last_heartbeat: apiPort.last_heartbeat,
+                                status: apiPort.device_status === 'offline' ? 'off' : existingPort.status,
+                            };
+                        } else {
+                            // New port from API with default values
+                            return {
+                                ...apiPort,
+                                promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
+                                mode: 'timed' as const,
+                                hours: '0',
+                                minutes: '0',
+                                promoScheme: 'tanpa-promo',
+                            };
+                        }
+                    });
+
+                    setPortsData(newPorts);
+                    setLastUpdate(new Date());
+                } else {
+                    console.warn('Invalid response format:', result);
+                }
+            } catch (error) {
+                console.error('Error fetching ports:', error);
+            } finally {
+                if (showLoading) {
+                    setIsLoading(false);
+                }
+            }
+        },
+        [portsData],
+    );
+
+    // Auto-refresh ports setiap 5 detik
+    useEffect(() => {
+        // Initial load
+        fetchPorts(true);
+
+        const interval = setInterval(() => {
+            fetchPorts(false); // Auto refresh tanpa loading indicator
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -377,15 +312,25 @@ export default function Dashboard() {
 
             <Card className="m-4">
                 <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle className="text-2xl font-bold">Manajemen Port</CardTitle>
+                    <div className="flex flex-col gap-1">
+                        <CardTitle className="text-2xl font-bold">Manajemen Port</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Last update: {lastUpdate.toLocaleTimeString('id-ID')}
+                            {isLoading && <span className="ml-2 text-blue-600">• Loading...</span>}
+                            <span className="ml-2">• Total devices: {new Set(portsData.map((p) => p.device)).size}</span>
+                        </p>
+                    </div>
                     <div className="flex items-center gap-2">
                         <input
                             type="text"
-                            placeholder="Search port..."
+                            placeholder="Search device/port..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full rounded border px-2 py-1 sm:w-64"
                         />
+                        <Button variant="outline" size="sm" onClick={() => fetchPorts(true)} disabled={isLoading}>
+                            {isLoading ? 'Loading...' : 'Refresh'}
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -417,52 +362,76 @@ export default function Dashboard() {
                                 </TableHead>
                                 <TableHead>Total</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead>Device Status</TableHead>
                                 <TableHead>Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredPorts.map((port) => (
-                                <TableRow key={port.id}>
-                                    <TableCell className="font-medium">{port.device ? port.device : '-'}</TableCell>
-                                    <TableCell className="font-medium">{port.no_port ? port.no_port : '-'}</TableCell>
-                                    <TableCell>{port.nama_port ? port.nama_port : '-'}</TableCell>
-                                    <TableCell>{port.nama_pelanggan ? port.nama_pelanggan : '-'}</TableCell>
-                                    <TableCell className="font-mono">{port.time ? timeFormat(port.time) : '-'}</TableCell>
-                                    <TableCell className="font-semibold">{port.total ? port.total : '-'}</TableCell>
-                                    <TableCell className="w-32">{getStatusBadge(port.status)}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-xs"
-                                                onClick={() => {
-                                                    setSelectedPort(port);
-                                                    setModalOpen(true);
-                                                }}
-                                            >
-                                                <Settings className="mr-1 h-3 w-3" /> Set/Lihat
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                disabled={port.status === 'off'}
-                                                className={cn(
-                                                    port.status === 'on'
-                                                        ? 'bg-yellow-400 hover:bg-yellow-500'
-                                                        : port.status === 'idle'
-                                                          ? 'bg-green-400 hover:bg-green-500'
-                                                          : port.status === 'pause'
-                                                            ? 'bg-green-400 hover:bg-green-500'
-                                                            : 'cursor-not-allowed bg-gray-300',
-                                                )}
-                                                onClick={() => handleActionClick(port)}
-                                            >
-                                                {port.status === 'on' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                                            </Button>
-                                        </div>
+                            {filteredPorts.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={9} className="py-6 text-center text-muted-foreground">
+                                        {isLoading
+                                            ? 'Loading ports...'
+                                            : search
+                                              ? 'Tidak ada port yang ditemukan'
+                                              : 'Belum ada device/port terdaftar'}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            ) : (
+                                filteredPorts.map((port) => (
+                                    <TableRow key={port.id}>
+                                        <TableCell className="font-medium">
+                                            {port.device}
+                                            {port.device_name && <div className="text-xs text-muted-foreground">{port.device_name}</div>}
+                                        </TableCell>
+                                        <TableCell className="font-medium">{port.no_port || '-'}</TableCell>
+                                        <TableCell>{port.nama_port || '-'}</TableCell>
+                                        <TableCell>{port.nama_pelanggan || '-'}</TableCell>
+                                        <TableCell className="font-mono">{port.time ? timeFormat(port.time) : '-'}</TableCell>
+                                        <TableCell className="font-semibold">{port.total || '-'}</TableCell>
+                                        <TableCell className="w-32">{getStatusBadge(port.status)}</TableCell>
+                                        <TableCell className="w-32">
+                                            {port.device_status === 'online' ? (
+                                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Online</Badge>
+                                            ) : (
+                                                <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Offline</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-xs"
+                                                    onClick={() => {
+                                                        setSelectedPort(port);
+                                                        setModalOpen(true);
+                                                    }}
+                                                    disabled={port.device_status === 'offline'}
+                                                >
+                                                    <Settings className="mr-1 h-3 w-3" /> Set/Lihat
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    disabled={port.status === 'off' || port.device_status === 'offline'}
+                                                    className={cn(
+                                                        port.status === 'on'
+                                                            ? 'bg-yellow-400 hover:bg-yellow-500'
+                                                            : port.status === 'idle'
+                                                              ? 'bg-green-400 hover:bg-green-500'
+                                                              : port.status === 'pause'
+                                                                ? 'bg-green-400 hover:bg-green-500'
+                                                                : 'cursor-not-allowed bg-gray-300',
+                                                    )}
+                                                    onClick={() => handleActionClick(port)}
+                                                >
+                                                    {port.status === 'on' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>

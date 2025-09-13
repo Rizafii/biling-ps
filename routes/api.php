@@ -19,3 +19,8 @@ Route::prefix('devices')->group(function () {
     Route::get('/', [EspDeviceController::class, 'getDevices']);
     Route::post('/check-status', [EspDeviceController::class, 'checkOfflineDevices']);
 });
+
+// Ports API Routes for dashboard
+Route::prefix('ports')->group(function () {
+    Route::get('/', [EspDeviceController::class, 'getPorts']);
+});
