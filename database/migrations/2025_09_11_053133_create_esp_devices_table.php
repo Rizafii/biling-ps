@@ -16,8 +16,6 @@ return new class extends Migration {
             $table->string('name')->nullable();
             $table->enum('status', ['online', 'offline'])->default('offline');
             $table->timestamp('last_heartbeat')->nullable();
-            $table->json('relay_states')->nullable(); // JSON array of relay states
-            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

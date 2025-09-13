@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->string('device_id'); //kalau butuh skema multidevice
             $table->integer('pin');
+            $table->string('nama_relay')->nullable();
             $table->boolean('status'); // true = ON, false = OFF
             $table->timestamps();
             $table->index(['device_id', 'pin']);

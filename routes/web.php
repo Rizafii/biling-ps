@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\PromoController;
+use App\Http\Controllers\EspDeviceController;
 // use App\Http\Controllers\HistoriController; // aktifkan kalau sudah siap
 
 /*
@@ -20,6 +21,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Promo (resource route)
     Route::resource('/promo', PromoController::class);
+
+    // ESP Device (resource route)
+    Route::resource('/device', EspDeviceController::class);
 
     // Histori (nanti kalau sudah ada controller)
     // Route::resource('histori', HistoriController::class);
