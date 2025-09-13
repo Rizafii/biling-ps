@@ -85,33 +85,36 @@ export default function Dashboard() {
 
                 if (result.success && Array.isArray(result.ports)) {
                     // Merge with existing ports data to preserve user-set values
-                    const newPorts = result.ports.map((apiPort: any) => {
-                        const existingPort = portsData.find((p) => p.id === apiPort.id);
+                    setPortsData((prevPorts) => {
+                        const newPorts = result.ports.map((apiPort: any) => {
+                            const existingPort = prevPorts.find((p) => p.id === apiPort.id);
 
-                        if (existingPort) {
-                            // Keep user-set values but update device status
-                            return {
-                                ...existingPort,
-                                device: apiPort.device,
-                                device_name: apiPort.device_name,
-                                device_status: apiPort.device_status,
-                                last_heartbeat: apiPort.last_heartbeat,
-                                status: apiPort.device_status === 'offline' ? 'off' : existingPort.status,
-                            };
-                        } else {
-                            // New port from API with default values
-                            return {
-                                ...apiPort,
-                                promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-                                mode: 'timed' as const,
-                                hours: '0',
-                                minutes: '0',
-                                promoScheme: 'tanpa-promo',
-                            };
-                        }
+                            if (existingPort) {
+                                // Keep user-set values but update device status
+                                return {
+                                    ...existingPort,
+                                    device: apiPort.device,
+                                    device_name: apiPort.device_name,
+                                    device_status: apiPort.device_status,
+                                    last_heartbeat: apiPort.last_heartbeat,
+                                    status: apiPort.device_status === 'offline' ? 'off' : existingPort.status,
+                                };
+                            } else {
+                                // New port from API with default values
+                                return {
+                                    ...apiPort,
+                                    promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
+                                    mode: 'timed' as const,
+                                    hours: '0',
+                                    minutes: '0',
+                                    promoScheme: 'tanpa-promo',
+                                };
+                            }
+                        });
+
+                        return newPorts;
                     });
 
-                    setPortsData(newPorts);
                     setLastUpdate(new Date());
                 } else {
                     console.warn('Invalid response format:', result);
@@ -124,7 +127,7 @@ export default function Dashboard() {
                 }
             }
         },
-        [portsData],
+        [], // ✅ Remove portsData dependency to avoid infinite loop
     );
 
     // Auto-refresh ports setiap 5 detik
@@ -133,11 +136,14 @@ export default function Dashboard() {
         fetchPorts(true);
 
         const interval = setInterval(() => {
-            fetchPorts(false); // Auto refresh tanpa loading indicator
+            // ✅ Skip auto-refresh jika modal sedang terbuka
+            if (!modalOpen && !modalConfirmOpen) {
+                fetchPorts(false); // Auto refresh tanpa loading indicator
+            }
         }, 5000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [modalOpen, modalConfirmOpen]);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));

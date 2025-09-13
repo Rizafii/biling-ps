@@ -46,6 +46,7 @@ interface ModalSetPortProps {
 
 export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, controlRelay }: ModalSetPortProps) {
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [isFormDirty, setIsFormDirty] = useState(false); // ✅ Track if user has modified form
     const [portData, setPortData] = useState({
         customer: '',
         hourlyRate: '',
@@ -65,26 +66,30 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             hours: '',
             minutes: '',
         });
+        setIsFormDirty(false); // ✅ Reset dirty state
     };
 
     useEffect(() => {
         if (isOpen && port) {
-            if (port.status === 'idle') {
-                // ✅ Jika port idle, reset form ke kosong
-                resetFormData();
-            } else {
-                // ✅ Jika port sedang aktif, ambil data dari port
-                setPortData({
-                    customer: port.nama_pelanggan || '',
-                    hourlyRate: port.price || '',
-                    promoScheme: port.promoScheme || 'tanpa-promo',
-                    mode: port.mode,
-                    hours: port.hours || '',
-                    minutes: port.minutes || '',
-                });
+            // ✅ Jangan update form data jika user sedang mengetik (form dirty)
+            if (!isFormDirty) {
+                if (port.status === 'idle') {
+                    // ✅ Jika port idle, reset form ke kosong
+                    resetFormData();
+                } else {
+                    // ✅ Jika port sedang aktif, ambil data dari port
+                    setPortData({
+                        customer: port.nama_pelanggan || '',
+                        hourlyRate: port.price || '',
+                        promoScheme: port.promoScheme || 'tanpa-promo',
+                        mode: port.mode,
+                        hours: port.hours || '',
+                        minutes: port.minutes || '',
+                    });
+                }
             }
         }
-    }, [isOpen, port]);
+    }, [isOpen, port, isFormDirty]);
 
     // ✅ Konversi jam dan menit ke detik (bukan menit)
     function jamMenitToDetik(hours: string, minutes: string): number {
@@ -163,6 +168,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
         };
 
         onUpdatePort(updatedPort);
+        setIsFormDirty(false); // ✅ Reset dirty state after successful action
         onClose();
     };
 
@@ -232,7 +238,15 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog
+            open={isOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    setIsFormDirty(false); // ✅ Reset dirty state when modal closes
+                }
+                onClose();
+            }}
+        >
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="mr-4 flex items-center justify-between">
@@ -262,7 +276,10 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 id="customer"
                                 placeholder="Nama / Kode"
                                 value={portData.customer}
-                                onChange={(e) => setPortData((prev) => ({ ...prev, customer: e.target.value }))}
+                                onChange={(e) => {
+                                    setPortData((prev) => ({ ...prev, customer: e.target.value }));
+                                    setIsFormDirty(true); // ✅ Mark form as dirty
+                                }}
                                 disabled={port.status !== 'idle'}
                                 className={port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
                             />
@@ -280,6 +297,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                         const raw = e.target.value.replace(/\D/g, '');
                                         const formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                                         setPortData((prev) => ({ ...prev, hourlyRate: formatted }));
+                                        setIsFormDirty(true); // ✅ Mark form as dirty
                                     }}
                                     disabled={port.status !== 'idle'}
                                     className={cn(
@@ -296,7 +314,10 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         <Label htmlFor="mode">Mode</Label>
                         <Select
                             value={portData.mode}
-                            onValueChange={(val) => setPortData((prev) => ({ ...prev, mode: val as 'timed' | 'bebas' }))}
+                            onValueChange={(val) => {
+                                setPortData((prev) => ({ ...prev, mode: val as 'timed' | 'bebas' }));
+                                setIsFormDirty(true); // ✅ Mark form as dirty
+                            }}
                             disabled={port.status !== 'idle'}
                         >
                             <SelectTrigger>
@@ -323,6 +344,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 onChange={(e) => {
                                     const value = e.target.value.replace(/[^0-9]/g, '');
                                     setPortData((prev) => ({ ...prev, hours: value }));
+                                    setIsFormDirty(true); // ✅ Mark form as dirty
                                 }}
                                 disabled={portData.mode === 'bebas' || port.status !== 'idle'}
                                 className={portData.mode === 'bebas' || port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
@@ -343,6 +365,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                     const numValue = parseInt(value || '0', 10);
                                     if (numValue <= 59) {
                                         setPortData((prev) => ({ ...prev, minutes: value }));
+                                        setIsFormDirty(true); // ✅ Mark form as dirty
                                     }
                                 }}
                                 disabled={portData.mode === 'bebas' || port.status !== 'idle'}
@@ -356,7 +379,10 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         <Label htmlFor="promo">Skema Promo</Label>
                         <Select
                             value={portData.promoScheme}
-                            onValueChange={(val) => setPortData((prev) => ({ ...prev, promoScheme: val }))}
+                            onValueChange={(val) => {
+                                setPortData((prev) => ({ ...prev, promoScheme: val }));
+                                setIsFormDirty(true); // ✅ Mark form as dirty
+                            }}
                             disabled={port.status !== 'idle'}
                         >
                             <SelectTrigger>
