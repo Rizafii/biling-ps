@@ -25,6 +25,7 @@ class BillingController extends Controller
                 'mode' => 'required|in:bebas,timer',
                 'tarif_perjam' => 'required|numeric|min:0',
                 'promo_id' => 'nullable|exists:promos,id',
+                'durasi' => 'nullable|string', // Required for timer mode (HH:MM:SS format)
             ]);
 
             // Find the ESP relay by device_id and pin
@@ -51,6 +52,18 @@ class BillingController extends Controller
                 ], 400);
             }
 
+            // Validate duration for timer mode
+            $durasi = null;
+            if ($validated['mode'] === 'timer') {
+                if (!isset($validated['durasi']) || empty($validated['durasi'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Duration is required for timer mode',
+                    ], 400);
+                }
+                $durasi = $validated['durasi'];
+            }
+
             // Create new billing record
             $billing = Billing::create([
                 'esp_relay_id' => $espRelay->id,
@@ -59,6 +72,7 @@ class BillingController extends Controller
                 'mode' => $validated['mode'],
                 'status' => 'aktif',
                 'tarif_perjam' => $validated['tarif_perjam'],
+                'durasi' => $durasi, // Set duration for timer mode
                 'waktu_mulai' => Carbon::now(),
             ]);
 
@@ -71,6 +85,7 @@ class BillingController extends Controller
                     'nama_pelanggan' => $billing->nama_pelanggan,
                     'mode' => $billing->mode,
                     'tarif_perjam' => $billing->tarif_perjam,
+                    'durasi' => $billing->durasi,
                     'waktu_mulai' => $billing->waktu_mulai->toISOString(),
                 ],
             ]);
@@ -221,6 +236,88 @@ class BillingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get active billing: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Check and auto-stop expired timed billings
+     */
+    public function checkExpiredTimedBillings(): JsonResponse
+    {
+        try {
+            // Get all active timer mode billings
+            $expiredBillings = Billing::with(['espRelay'])
+                ->where('status', 'aktif')
+                ->where('mode', 'timer')
+                ->whereNotNull('durasi')
+                ->get()
+                ->filter(function ($billing) {
+                    // Check if billing has expired
+                    $waktuMulai = Carbon::parse($billing->waktu_mulai);
+                    $durasi = $billing->durasi; // Already in HH:MM:SS format
+    
+                    // Parse duration to add to start time
+                    $durasiParts = explode(':', $durasi);
+                    $hours = (int) $durasiParts[0];
+                    $minutes = (int) $durasiParts[1];
+                    $seconds = (int) $durasiParts[2];
+
+                    $waktuSelesai = $waktuMulai->copy()
+                        ->addHours($hours)
+                        ->addMinutes($minutes)
+                        ->addSeconds($seconds);
+
+                    return Carbon::now()->greaterThan($waktuSelesai);
+                });
+
+            $stoppedBillings = [];
+
+            foreach ($expiredBillings as $billing) {
+                // Calculate total cost based on the set duration
+                $tarif = $billing->tarif_perjam;
+                $durasi = $billing->durasi;
+
+                // Convert duration to hours for calculation
+                $durasiParts = explode(':', $durasi);
+                $totalHours = (int) $durasiParts[0] + ((int) $durasiParts[1] / 60) + ((int) $durasiParts[2] / 3600);
+
+                $totalBiaya = $tarif * $totalHours;
+
+                // Round up to nearest 100
+                $sisa = $totalBiaya % 100;
+                if ($sisa !== 0) {
+                    $totalBiaya = $totalBiaya + (100 - $sisa);
+                }
+
+                // Update billing to completed
+                $billing->update([
+                    'status' => 'selesai',
+                    'total_biaya' => $totalBiaya,
+                    'waktu_selesai' => Carbon::now(),
+                ]);
+
+                $stoppedBillings[] = [
+                    'billing_id' => $billing->id,
+                    'device_id' => $billing->espRelay->device_id,
+                    'pin' => $billing->espRelay->pin,
+                    'nama_pelanggan' => $billing->nama_pelanggan,
+                    'total_biaya' => $totalBiaya,
+                    'durasi' => $billing->durasi,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Expired billings checked',
+                'expired_count' => count($stoppedBillings),
+                'stopped_billings' => $stoppedBillings,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check expired billings: ' . $e->getMessage(),
             ], 500);
         }
     }

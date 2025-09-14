@@ -130,6 +130,34 @@ export default function Dashboard() {
         [], // ✅ Remove portsData dependency to avoid infinite loop
     );
 
+    // Function to check expired timed billings
+    const checkExpiredBillings = useCallback(async () => {
+        try {
+            const response = await fetch('/api/billing/check-expired', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.stopped_billings.length > 0) {
+                    // Auto turn off relays for expired billings
+                    for (const billing of result.stopped_billings) {
+                        await controlRelay(billing.device_id, billing.pin, false);
+                    }
+                    console.log(`Auto-stopped ${result.expired_count} expired billings`);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking expired billings:', error);
+        }
+    }, []);
+
     // Auto-refresh ports setiap 5 detik
     useEffect(() => {
         // Initial load
@@ -139,11 +167,12 @@ export default function Dashboard() {
             // ✅ Skip auto-refresh jika modal sedang terbuka
             if (!modalOpen && !modalConfirmOpen) {
                 fetchPorts(false); // Auto refresh tanpa loading indicator
+                checkExpiredBillings(); // Check for expired timed billings
             }
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [modalOpen, modalConfirmOpen]);
+    }, [modalOpen, modalConfirmOpen, checkExpiredBillings]);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -306,15 +335,8 @@ export default function Dashboard() {
                 const minutes = Math.floor((totalSeconds % 3600) / 60);
                 const seconds = totalSeconds % 60;
                 durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            } else if (port.type === 't') {
-                // timed mode
-                // Calculate used time (billing - remaining time)
-                const usedSeconds = port.billing - port.time;
-                const hours = Math.floor(usedSeconds / 3600);
-                const minutes = Math.floor((usedSeconds % 3600) / 60);
-                const seconds = usedSeconds % 60;
-                durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }
+            // For timed mode, duration is already set in database, so we don't need to calculate it here
 
             // Call API to stop billing
             try {

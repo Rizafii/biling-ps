@@ -152,6 +152,14 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
 
         // Create billing record in database
         try {
+            // Prepare duration for timed mode
+            let durasi = null;
+            if (portData.mode === 'timed') {
+                const hours = parseInt(portData.hours || '0', 10);
+                const minutes = parseInt(portData.minutes || '0', 10);
+                durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+            }
+
             const response = await fetch('/api/billing/start', {
                 method: 'POST',
                 headers: {
@@ -167,6 +175,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                     mode: portData.mode === 'timed' ? 'timer' : 'bebas', // Convert to database enum
                     tarif_perjam: parseInt(portData.hourlyRate.replace(/\./g, '')) || 0,
                     promo_id: portData.promoScheme !== 'tanpa-promo' ? portData.promoScheme : null,
+                    durasi: durasi, // Include duration for timed mode
                 }),
             });
 
@@ -229,15 +238,8 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             const minutes = Math.floor((totalSeconds % 3600) / 60);
             const seconds = totalSeconds % 60;
             durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        } else if (port.type === 't') {
-            // timed mode
-            // Calculate used time (billing - remaining time)
-            const usedSeconds = port.billing - port.time;
-            const hours = Math.floor(usedSeconds / 3600);
-            const minutes = Math.floor((usedSeconds % 3600) / 60);
-            const seconds = usedSeconds % 60;
-            durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
+        // For timed mode, duration is already set in database, so we don't need to calculate it here
 
         // Control relay OFF (status false = aliran mati)
         if (controlRelay && port.pin && port.device) {

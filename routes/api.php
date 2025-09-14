@@ -40,4 +40,5 @@ Route::prefix('billing')->group(function () {
     Route::post('/start', [BillingController::class, 'start']);
     Route::post('/stop', [BillingController::class, 'stop']);
     Route::get('/active', [BillingController::class, 'getActiveBilling']);
+    Route::post('/check-expired', [BillingController::class, 'checkExpiredTimedBillings']);
 });
