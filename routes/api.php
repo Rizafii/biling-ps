@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EspDeviceController;
 use App\Http\Controllers\Api\EspController;
+use App\Http\Controllers\Api\BillingController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -32,4 +33,11 @@ Route::prefix('ports')->group(function () {
 Route::prefix('relay')->group(function () {
     Route::post('/control', [EspController::class, 'controlRelay']);
     Route::post('/control-multiple', [EspController::class, 'controlMultipleRelays']);
+});
+
+// Billing API Routes
+Route::prefix('billing')->group(function () {
+    Route::post('/start', [BillingController::class, 'start']);
+    Route::post('/stop', [BillingController::class, 'stop']);
+    Route::get('/active', [BillingController::class, 'getActiveBilling']);
 });

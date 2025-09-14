@@ -294,6 +294,50 @@ export default function Dashboard() {
             // Control relay untuk OFF (status false = aliran mati)
             await controlRelay(port.device, port.pin, false);
 
+            // Calculate total biaya and durasi for billing stop
+            const totalBiaya = hitungTotal(port.price, port.billing, port.time, port.type);
+            let durasiMenit = null;
+
+            if (port.type === 'b') {
+                // bebas mode
+                // Durasi dalam menit untuk mode bebas = waktu yang sudah berjalan
+                durasiMenit = Math.floor(port.time / 60); // Convert seconds to minutes
+            }
+
+            // Call API to stop billing
+            try {
+                const response = await fetch('/api/billing/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        device_id: port.device,
+                        pin: port.pin,
+                        total_biaya: totalBiaya,
+                        durasi_menit: durasiMenit,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log('Billing stopped successfully:', result);
+                } else {
+                    console.error('Failed to stop billing:', result.message);
+                }
+            } catch (error) {
+                console.error('Error stopping billing:', error);
+                alert('Gagal menghentikan billing di database. Namun relay sudah dimatikan.');
+            }
+
             // Update UI status
             setPortsData((prev) =>
                 prev.map((p) => {
@@ -307,6 +351,11 @@ export default function Dashboard() {
                             billing: 0,
                             total: 0,
                             subtotal: 0,
+                            price: '',
+                            hours: '0',
+                            minutes: '0',
+                            promoScheme: 'tanpa-promo',
+                            mode: 'timed',
                         };
                     }
                     return p;

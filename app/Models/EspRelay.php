@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EspRelay extends Model
 {
@@ -53,5 +55,21 @@ class EspRelay extends Model
         }
 
         return 'idle';
+    }
+
+    /**
+     * Get the billing records for this relay
+     */
+    public function billings(): HasMany
+    {
+        return $this->hasMany(Billing::class, 'esp_relay_id');
+    }
+
+    /**
+     * Get the active billing for this relay
+     */
+    public function activeBilling(): HasOne
+    {
+        return $this->hasOne(Billing::class, 'esp_relay_id')->where('status', 'aktif');
     }
 }

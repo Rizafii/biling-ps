@@ -150,6 +150,43 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             }
         }
 
+        // Create billing record in database
+        try {
+            const response = await fetch('/api/billing/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    device_id: port.device,
+                    pin: port.pin,
+                    nama_pelanggan: portData.customer,
+                    mode: portData.mode === 'timed' ? 'timer' : 'bebas', // Convert to database enum
+                    tarif_perjam: parseInt(portData.hourlyRate.replace(/\./g, '')) || 0,
+                    promo_id: portData.promoScheme !== 'tanpa-promo' ? portData.promoScheme : null,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to create billing record');
+            }
+
+            console.log('Billing started successfully:', result);
+        } catch (error) {
+            console.error('Error creating billing record:', error);
+            alert('Gagal membuat record billing. Namun relay sudah menyala.');
+            // Don't return here, continue with UI update
+        }
+
         const updatedPort: Port = {
             ...port,
             nama_pelanggan: portData.customer,
@@ -180,6 +217,16 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
     };
 
     const handleFinish = async () => {
+        // Calculate total biaya and durasi for billing stop
+        const totalBiaya = hitungTotal(port.price, port.time, port.type === 't' ? 'timed' : 'bebas');
+        let durasiMenit = null;
+
+        if (port.type === 'b') {
+            // bebas mode
+            // Durasi dalam menit untuk mode bebas = waktu yang sudah berjalan
+            durasiMenit = Math.floor(port.time / 60); // Convert seconds to minutes
+        }
+
         // Control relay OFF (status false = aliran mati)
         if (controlRelay && port.pin && port.device) {
             try {
@@ -189,6 +236,41 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                 alert('Gagal mengontrol relay. Coba lagi.');
                 return;
             }
+        }
+
+        // Call API to stop billing
+        try {
+            const response = await fetch('/api/billing/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    device_id: port.device,
+                    pin: port.pin,
+                    total_biaya: totalBiaya,
+                    durasi_menit: durasiMenit,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('Billing stopped successfully:', result);
+            } else {
+                console.error('Failed to stop billing:', result.message);
+                alert('Gagal menghentikan billing di database.');
+            }
+        } catch (error) {
+            console.error('Error stopping billing:', error);
+            alert('Gagal menghentikan billing di database. Namun relay sudah dimatikan.');
         }
 
         // ✅ Set port ke idle dan reset semua data

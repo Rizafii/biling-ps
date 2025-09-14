@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EspDevice;
 use App\Models\EspRelay;
+use App\Models\Billing;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -159,32 +160,49 @@ class EspDeviceController extends Controller
 
         $devices = EspDevice::with(['relays'])->get();
 
+        // Get all active billings with their relay relationships
+        $activeBillings = Billing::with(['espRelay', 'promo'])
+            ->where('status', 'aktif')
+            ->get()
+            ->keyBy(function ($billing) {
+                return $billing->espRelay->device_id . '_' . $billing->espRelay->pin;
+            });
+
         $ports = [];
         foreach ($devices as $device) {
-            // Get relays untuk device ini (tidak perlu latest, karena sekarang tidak ada log)
+            // Get relays untuk device ini
             $relays = EspRelay::where('device_id', $device->device_id)
                 ->orderBy('pin')
                 ->get();
 
             foreach ($relays as $relay) {
                 $portNumber = $this->getPinToPortNumber($relay->pin);
+                $portKey = $device->device_id . '_' . $relay->pin;
 
-                // Determine port status based on device status
+                // Check if there's an active billing for this port
+                $activeBilling = $activeBillings->get($portKey);
+
+                // Determine port status based on device status and billing
                 $portStatus = 'idle'; // default
                 if ($device->status === 'offline') {
                     $portStatus = 'off';
                 } elseif ($device->status === 'online') {
-                    $portStatus = $relay->status ? 'on' : 'idle';
+                    if ($activeBilling) {
+                        $portStatus = 'on'; // If there's active billing, port is on
+                    } else {
+                        $portStatus = $relay->status ? 'on' : 'idle';
+                    }
                 }
 
-                $ports[] = [
-                    'id' => $device->device_id . '_' . $relay->pin,
+                // Prepare port data
+                $portData = [
+                    'id' => $portKey,
                     'device' => $device->device_id,
                     'device_name' => $device->name,
                     'no_port' => 'PORT ' . $portNumber,
                     'nama_port' => $relay->nama_relay,
                     'pin' => $relay->pin,
-                    'type' => '', // Will be set by billing logic
+                    'type' => '',
                     'nama_pelanggan' => '',
                     'duration' => '00:00:00',
                     'price' => '',
@@ -196,7 +214,47 @@ class EspDeviceController extends Controller
                     'diskon' => 0,
                     'device_status' => $device->status,
                     'last_heartbeat' => $device->last_heartbeat,
+                    'mode' => 'timed',
+                    'hours' => '0',
+                    'minutes' => '0',
+                    'promoScheme' => 'tanpa-promo',
                 ];
+
+                // If there's active billing, populate billing data
+                if ($activeBilling) {
+                    $waktuMulai = Carbon::parse($activeBilling->waktu_mulai);
+                    $waktuSekarang = Carbon::now();
+                    $detikBerjalan = $waktuSekarang->diffInSeconds($waktuMulai);
+
+                    $portData['type'] = $activeBilling->mode === 'timer' ? 't' : 'b';
+                    $portData['nama_pelanggan'] = $activeBilling->nama_pelanggan;
+                    $portData['price'] = number_format((float) $activeBilling->tarif_perjam, 0, ',', '.');
+                    $portData['mode'] = $activeBilling->mode === 'timer' ? 'timed' : 'bebas';
+                    $portData['time'] = $detikBerjalan;
+                    $portData['billing'] = $detikBerjalan; // For now, same as time
+
+                    // Calculate current total
+                    $jam = $detikBerjalan / 3600;
+                    $currentTotal = round($activeBilling->tarif_perjam * $jam);
+                    $sisa = $currentTotal % 100;
+                    if ($sisa !== 0)
+                        $currentTotal = $currentTotal + (100 - $sisa);
+
+                    $portData['total'] = $currentTotal;
+                    $portData['subtotal'] = $currentTotal;
+
+                    // Format duration
+                    $h = floor($detikBerjalan / 3600);
+                    $m = floor(($detikBerjalan % 3600) / 60);
+                    $s = $detikBerjalan % 60;
+                    $portData['duration'] = sprintf('%02d:%02d:%02d', $h, $m, $s);
+
+                    if ($activeBilling->promo) {
+                        $portData['promoScheme'] = $activeBilling->promo->code;
+                    }
+                }
+
+                $ports[] = $portData;
             }
         }
 
