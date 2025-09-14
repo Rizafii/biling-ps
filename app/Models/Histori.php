@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Billing extends Model
+class Histori extends Model
 {
-        protected $fillable = [
+    protected $fillable = [
         'esp_relay_id',
         'promo_id',
         'nama_pelanggan',

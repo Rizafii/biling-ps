@@ -178,7 +178,7 @@ export default function Index({ devices: initialDevices }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Device" />
-            <Card>
+            <Card className="m-4">
                 <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-col gap-1">
                         <CardTitle className="text-2xl font-bold">Manajemen Device ESP</CardTitle>
@@ -433,18 +433,20 @@ export default function Index({ devices: initialDevices }: Props) {
                     </DialogHeader>
                     {selectedDevice && (
                         <div className="space-y-3">
-                            <div className="flex justify-between">
-                                <span className="font-medium">Device ID:</span>
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Device ID</span>
                                 <span>{selectedDevice.device_id}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Nama:</span>
-                                <span>{selectedDevice.name ?? '-'}</span>
+
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Nama</span>
+                                <span>{selectedDevice.name ?? "-"}</span>
                             </div>
-                            <div className="flex items-center justify-between">
-                                <span className="font-medium">Status:</span>
+
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Status</span>
                                 <div className="flex items-center gap-2">
-                                    {selectedDevice.status === 'online' ? (
+                                    {selectedDevice.status === "online" ? (
                                         <>
                                             <Wifi className="h-4 w-4 text-green-600" />
                                             <Badge className="bg-green-100 text-green-800">Online</Badge>
@@ -457,10 +459,13 @@ export default function Index({ devices: initialDevices }: Props) {
                                     )}
                                 </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Last Heartbeat:</span>
+
+                            <div className="flex justify-between py-2">
+                                <span className="font-medium">Last Heartbeat</span>
                                 <span className="text-right">
-                                    {selectedDevice.last_heartbeat ? new Date(selectedDevice.last_heartbeat).toLocaleString('id-ID') : '-'}
+                                    {selectedDevice.last_heartbeat
+                                        ? new Date(selectedDevice.last_heartbeat).toLocaleString("id-ID")
+                                        : "-"}
                                 </span>
                             </div>
                         </div>
@@ -478,6 +483,7 @@ export default function Index({ devices: initialDevices }: Props) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
         </AppLayout>
     );
 }
