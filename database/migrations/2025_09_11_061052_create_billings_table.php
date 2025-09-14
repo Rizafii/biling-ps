@@ -12,14 +12,14 @@ return new class extends Migration {
     {
         Schema::create('billings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('esp_relay_id')->constrained('esp_relays')->onDelete('cascade');
+            $table->foreignId('esp_relay_id')->constrained('esp_relay_logs')->onDelete('cascade');
             $table->foreignId('promo_id')->nullable()->constrained('promos')->onDelete('set null');
             $table->string('nama_pelanggan');
             $table->enum('mode', ['bebas', 'timer']);
-            $table->enum('status', ['aktif', 'selesai']);
+            $table->enum('status', ['aktif', 'selesai'])->default('aktif');
             $table->decimal('tarif_perjam', 10, 2);
-            $table->decimal('total_biaya', 10, 2);
-            $table->integer('durasi_menit')->nullable();
+            $table->decimal('total_biaya', 10, 2)->nullable();
+            $table->time('durasi')->nullable()->after('total_biaya');
             $table->timestamp('waktu_mulai');
             $table->timestamp('waktu_selesai')->nullable();
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EspDevice;
 use App\Models\EspRelay;
+use App\Models\Billing;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -69,7 +70,6 @@ class EspDeviceController extends Controller
             'timestamp' => 'nullable|numeric',
             'ip_address' => 'nullable|string|ip',
             'status' => 'nullable|string',
-            'relays' => 'nullable|array',
         ]);
 
         // Find device (tidak auto-create)
@@ -90,16 +90,10 @@ class EspDeviceController extends Controller
             'last_heartbeat' => now(),
         ]);
 
-        // Update relay states if provided (hanya update, tidak create baru)
-        if (isset($validated['relays']) && is_array($validated['relays'])) {
-            $this->updateRelayStates($validated['device_id'], $validated['relays']);
-        }
-
         // Log heartbeat for debugging
         \Log::info("Heartbeat received from device: {$validated['device_id']}", [
             'ip_address' => $validated['ip_address'] ?? 'unknown',
             'timestamp' => $validated['timestamp'] ?? 'unknown',
-            'relays_count' => count($validated['relays'] ?? []),
         ]);
 
         // Return success response
@@ -108,7 +102,6 @@ class EspDeviceController extends Controller
             'message' => 'Heartbeat received successfully',
             'device_id' => $device->device_id,
             'server_time' => now()->toISOString(),
-            'relays' => [], // For future relay control implementation
         ]);
     }
 
@@ -167,32 +160,51 @@ class EspDeviceController extends Controller
 
         $devices = EspDevice::with(['relays'])->get();
 
+        // Get all active billings with their relay relationships
+        $activeBillings = Billing::with(['espRelay', 'promo'])
+            ->where('status', 'aktif')
+            ->get()
+            ->keyBy(function ($billing) {
+                return $billing->espRelay->device_id . '_' . $billing->espRelay->pin;
+            });
+
         $ports = [];
         foreach ($devices as $device) {
-            // Get relays untuk device ini (tidak perlu latest, karena sekarang tidak ada log)
+            // Get relays untuk device ini
             $relays = EspRelay::where('device_id', $device->device_id)
                 ->orderBy('pin')
                 ->get();
 
             foreach ($relays as $relay) {
                 $portNumber = $this->getPinToPortNumber($relay->pin);
+                $portKey = $device->device_id . '_' . $relay->pin;
 
-                // Determine port status based on device status
+                // Check if there's an active billing for this port
+                $activeBilling = $activeBillings->get($portKey);
+
+                // Determine port status based on device status and billing
                 $portStatus = 'idle'; // default
                 if ($device->status === 'offline') {
                     $portStatus = 'off';
                 } elseif ($device->status === 'online') {
-                    $portStatus = $relay->status ? 'on' : 'idle';
+                    if ($activeBilling) {
+                        $portStatus = 'on'; // If there's active billing, port is on
+                    } else {
+                        $portStatus = $relay->status ? 'on' : 'idle';
+                    }
                 }
 
-                $ports[] = [
-                    'id' => $device->device_id . '_' . $relay->pin,
+                // Prepare port data with server time
+                $serverTime = Carbon::now();
+
+                $portData = [
+                    'id' => $portKey,
                     'device' => $device->device_id,
                     'device_name' => $device->name,
                     'no_port' => 'PORT ' . $portNumber,
                     'nama_port' => $relay->nama_relay,
                     'pin' => $relay->pin,
-                    'type' => '', // Will be set by billing logic
+                    'type' => '',
                     'nama_pelanggan' => '',
                     'duration' => '00:00:00',
                     'price' => '',
@@ -204,13 +216,87 @@ class EspDeviceController extends Controller
                     'diskon' => 0,
                     'device_status' => $device->status,
                     'last_heartbeat' => $device->last_heartbeat,
+                    'mode' => 'timed',
+                    'hours' => '0',
+                    'minutes' => '0',
+                    'promoScheme' => 'tanpa-promo',
+                    'server_time' => $serverTime->timestamp, // Add server timestamp
+                    'start_time' => null, // Will be set if there's active billing
                 ];
+
+                // If there's active billing, populate billing data
+                if ($activeBilling) {
+                    $waktuMulai = Carbon::parse($activeBilling->waktu_mulai);
+                    $waktuSekarang = Carbon::now();
+
+                    // Calculate elapsed time in seconds
+                    $detikBerjalan = $waktuSekarang->diffInSeconds($waktuMulai);
+
+                    // For timed mode, calculate remaining time
+                    if ($activeBilling->mode === 'timer' && $activeBilling->durasi) {
+                        $durasiParts = explode(':', $activeBilling->durasi);
+                        $totalDetikDurasi = ($durasiParts[0] * 3600) + ($durasiParts[1] * 60) + ($durasiParts[2] ?? 0);
+                        $sisaDetik = max(0, $totalDetikDurasi - $detikBerjalan);
+
+                        $portData['time'] = $sisaDetik; // Remaining time for timed mode
+                        $portData['billing'] = $totalDetikDurasi; // Total allocated time
+                    } else {
+                        // For bebas mode, use elapsed time
+                        $portData['time'] = $detikBerjalan; // Elapsed time for bebas mode
+                        $portData['billing'] = $detikBerjalan;
+                    }
+
+                    $portData['type'] = $activeBilling->mode === 'timer' ? 't' : 'b';
+                    $portData['nama_pelanggan'] = $activeBilling->nama_pelanggan;
+                    $portData['price'] = number_format((float) $activeBilling->tarif_perjam, 0, ',', '.');
+                    $portData['mode'] = $activeBilling->mode === 'timer' ? 'timed' : 'bebas';
+                    $portData['start_time'] = $waktuMulai->timestamp; // Add start timestamp
+
+                    // Calculate current total
+                    if ($activeBilling->mode === 'timer') {
+                        // For timed mode, calculate based on elapsed time
+                        $jam = $detikBerjalan / 3600;
+                        $currentTotal = round($activeBilling->tarif_perjam * $jam);
+                    } else {
+                        // For bebas mode, calculate based on elapsed time
+                        $jam = $detikBerjalan / 3600;
+                        $currentTotal = round($activeBilling->tarif_perjam * $jam);
+                    }
+
+                    $sisa = $currentTotal % 100;
+                    if ($sisa !== 0)
+                        $currentTotal = $currentTotal + (100 - $sisa);
+
+                    $portData['total'] = $currentTotal;
+                    $portData['subtotal'] = $currentTotal;
+
+                    // Format duration based on mode
+                    if ($activeBilling->mode === 'timer') {
+                        // For timed mode, show remaining time
+                        $h = floor($sisaDetik / 3600);
+                        $m = floor(($sisaDetik % 3600) / 60);
+                        $s = $sisaDetik % 60;
+                    } else {
+                        // For bebas mode, show elapsed time
+                        $h = floor($detikBerjalan / 3600);
+                        $m = floor(($detikBerjalan % 3600) / 60);
+                        $s = $detikBerjalan % 60;
+                    }
+                    $portData['duration'] = sprintf('%02d:%02d:%02d', $h, $m, $s);
+
+                    if ($activeBilling->promo) {
+                        $portData['promoScheme'] = $activeBilling->promo->code;
+                    }
+                }
+
+                $ports[] = $portData;
             }
         }
 
         return response()->json([
             'success' => true,
             'ports' => $ports,
+            'server_time' => Carbon::now()->timestamp, // Add global server time
         ]);
     }
 
@@ -255,25 +341,6 @@ class EspDeviceController extends Controller
                 'nama_relay' => 'PORT ' . ($index + 1),
                 'status' => false, // Default OFF
             ]);
-        }
-    }
-
-    /**
-     * Update relay states when receiving heartbeat from ESP32
-     * Hanya update status relay yang sudah ada, tidak create baru
-     */
-    private function updateRelayStates(string $deviceId, array $relays)
-    {
-        foreach ($relays as $relay) {
-            $pin = $relay['pin'] ?? null;
-            $state = $relay['state'] ?? false;
-
-            if ($pin) {
-                // Update relay yang sudah ada berdasarkan device_id dan pin
-                EspRelay::where('device_id', $deviceId)
-                    ->where('pin', $pin)
-                    ->update(['status' => $state]);
-            }
         }
     }
 

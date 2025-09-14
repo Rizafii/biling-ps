@@ -12,7 +12,7 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { AlertTriangle, ChevronDown, ChevronUp, Pause, Play, Settings } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard().url }];
 
@@ -28,9 +28,9 @@ interface Port {
     duration: string; // "HH:MM:SS"
     price: string;
     status: 'idle' | 'on' | 'pause' | 'off';
-    time: number; // dalam menit atau detik, sesuai format timeFormat
+    time: number; // dalam detik
     total: number;
-    billing: number; // menit
+    billing: number; // detik
     subtotal: number;
     diskon: number;
     promoList: { id: string; label: string }[];
@@ -40,7 +40,10 @@ interface Port {
     promoScheme: string;
     device_status?: 'online' | 'offline';
     last_heartbeat?: string;
+    server_time?: number; // Server timestamp
+    start_time?: number; // Start billing timestamp
 }
+
 export default function Dashboard() {
     const timeFormat = (t: number) => {
         const h = Math.floor(t / 3600);
@@ -58,74 +61,188 @@ export default function Dashboard() {
     const [selectedPort, setSelectedPort] = useState<Port | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+    const [serverTimeOffset, setServerTimeOffset] = useState(0); // Offset between client and server time
+    const serverTimeRef = useRef<number>(0);
+
+    // Calculate current client timestamp
+    const getCurrentTimestamp = () => Math.floor(Date.now() / 1000);
 
     // Fetch ports data from API
-    const fetchPorts = useCallback(
-        async (showLoading = false) => {
-            try {
-                if (showLoading) {
-                    setIsLoading(true);
+    const fetchPorts = useCallback(async (showLoading = false) => {
+        try {
+            if (showLoading) {
+                setIsLoading(true);
+            }
+
+            const response = await fetch('/api/ports', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success && Array.isArray(result.ports)) {
+                // Calculate server time offset
+                if (result.server_time) {
+                    const clientTime = getCurrentTimestamp();
+                    const serverTime = result.server_time;
+                    setServerTimeOffset(serverTime - clientTime);
+                    serverTimeRef.current = serverTime;
                 }
 
-                const response = await fetch('/api/ports', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    },
-                    credentials: 'same-origin',
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success && Array.isArray(result.ports)) {
-                    // Merge with existing ports data to preserve user-set values
+                // Process ports data
+                setPortsData((prevPorts) => {
                     const newPorts = result.ports.map((apiPort: any) => {
-                        const existingPort = portsData.find((p) => p.id === apiPort.id);
+                        const existingPort = prevPorts.find((p) => p.id === apiPort.id);
+
+                        // For active billings, recalculate time based on server data
+                        if (apiPort.start_time && (apiPort.type === 'b' || apiPort.type === 't')) {
+                            const currentServerTime = serverTimeRef.current || apiPort.server_time || getCurrentTimestamp();
+                            const elapsedSeconds = Math.max(0, currentServerTime - apiPort.start_time);
+
+                            if (apiPort.type === 'b') {
+                                // Bebas mode: use elapsed time
+                                apiPort.time = elapsedSeconds;
+                                apiPort.billing = elapsedSeconds;
+                            } else if (apiPort.type === 't') {
+                                // Timed mode: calculate remaining time
+                                if (apiPort.billing && apiPort.billing > 0) {
+                                    apiPort.time = Math.max(0, apiPort.billing - elapsedSeconds);
+                                }
+                            }
+
+                            // Recalculate total
+                            const tarif = parseInt((apiPort.price || '0').replace(/\./g, '')) || 0;
+                            const jam = elapsedSeconds / 3600;
+                            let total = Math.round(tarif * jam);
+                            const sisa = total % 100;
+                            if (sisa !== 0) total = total + (100 - sisa);
+                            apiPort.total = total;
+                            apiPort.subtotal = total;
+
+                            // Format duration
+                            const displaySeconds = apiPort.type === 'b' ? elapsedSeconds : apiPort.time;
+                            const h = Math.floor(displaySeconds / 3600);
+                            const m = Math.floor((displaySeconds % 3600) / 60);
+                            const s = displaySeconds % 60;
+                            apiPort.duration = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                        }
 
                         if (existingPort) {
-                            // Keep user-set values but update device status
+                            // Keep some user-set values but update server data
                             return {
                                 ...existingPort,
                                 device: apiPort.device,
                                 device_name: apiPort.device_name,
                                 device_status: apiPort.device_status,
                                 last_heartbeat: apiPort.last_heartbeat,
-                                status: apiPort.device_status === 'offline' ? 'off' : existingPort.status,
+                                status: apiPort.device_status === 'offline' ? 'off' : apiPort.status || existingPort.status,
+                                // Update time-based data from server
+                                time: apiPort.time !== undefined ? apiPort.time : existingPort.time,
+                                billing: apiPort.billing !== undefined ? apiPort.billing : existingPort.billing,
+                                total: apiPort.total !== undefined ? apiPort.total : existingPort.total,
+                                subtotal: apiPort.subtotal !== undefined ? apiPort.subtotal : existingPort.subtotal,
+                                duration: apiPort.duration || existingPort.duration,
+                                server_time: apiPort.server_time,
+                                start_time: apiPort.start_time,
+                                // Keep billing data from API if exists
+                                nama_pelanggan: apiPort.nama_pelanggan || existingPort.nama_pelanggan,
+                                price: apiPort.price || existingPort.price,
+                                type: apiPort.type || existingPort.type,
+                                mode: apiPort.mode || existingPort.mode,
+                                promoScheme: apiPort.promoScheme || existingPort.promoScheme,
                             };
                         } else {
                             // New port from API with default values
                             return {
                                 ...apiPort,
                                 promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-                                mode: 'timed' as const,
-                                hours: '0',
-                                minutes: '0',
-                                promoScheme: 'tanpa-promo',
+                                mode: apiPort.mode || 'timed',
+                                hours: apiPort.hours || '0',
+                                minutes: apiPort.minutes || '0',
+                                promoScheme: apiPort.promoScheme || 'tanpa-promo',
                             };
                         }
                     });
 
-                    setPortsData(newPorts);
-                    setLastUpdate(new Date());
-                } else {
-                    console.warn('Invalid response format:', result);
-                }
-            } catch (error) {
-                console.error('Error fetching ports:', error);
-            } finally {
-                if (showLoading) {
-                    setIsLoading(false);
+                    return newPorts;
+                });
+
+                setLastUpdate(new Date());
+            } else {
+                console.warn('Invalid response format:', result);
+            }
+        } catch (error) {
+            console.error('Error fetching ports:', error);
+        } finally {
+            if (showLoading) {
+                setIsLoading(false);
+            }
+        }
+    }, []);
+
+    // Function to check expired timed billings
+    const checkExpiredBillings = useCallback(async () => {
+        try {
+            const response = await fetch('/api/billing/check-expired', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.stopped_billings.length > 0) {
+                    // Auto turn off relays for expired billings
+                    for (const billing of result.stopped_billings) {
+                        await controlRelay(billing.device_id, billing.pin, false);
+
+                        // Update local state immediately to clear customer data
+                        const portId = `${billing.device_id}_${billing.pin}`;
+                        setPortsData((prev) =>
+                            prev.map((p) => {
+                                if (p.id === portId) {
+                                    return {
+                                        ...p,
+                                        status: 'idle',
+                                        type: '',
+                                        nama_pelanggan: '',
+                                        time: 0,
+                                        billing: 0,
+                                        total: 0,
+                                        subtotal: 0,
+                                        price: '',
+                                        hours: '0',
+                                        minutes: '0',
+                                        promoScheme: 'tanpa-promo',
+                                        mode: 'timed',
+                                        start_time: undefined,
+                                    };
+                                }
+                                return p;
+                            }),
+                        );
+                    }
+                    console.log(`Auto-stopped ${result.expired_count} expired billings`);
                 }
             }
-        },
-        [portsData],
-    );
+        } catch (error) {
+            console.error('Error checking expired billings:', error);
+        }
+    }, []);
 
     // Auto-refresh ports setiap 5 detik
     useEffect(() => {
@@ -133,28 +250,107 @@ export default function Dashboard() {
         fetchPorts(true);
 
         const interval = setInterval(() => {
-            fetchPorts(false); // Auto refresh tanpa loading indicator
+            // Skip auto-refresh jika modal sedang terbuka
+            if (!modalOpen && !modalConfirmOpen) {
+                fetchPorts(false); // Auto refresh tanpa loading indicator
+                checkExpiredBillings(); // Check for expired timed billings
+            }
         }, 5000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [modalOpen, modalConfirmOpen, checkExpiredBillings]);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     };
 
+    // Function untuk mengontrol relay dari dashboard
+    const controlRelay = async (deviceId: string, pin: number, status: boolean) => {
+        try {
+            const response = await fetch('/api/relay/control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    pin: pin,
+                    status: status, // true = aliran ON, false = aliran OFF
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('Relay controlled successfully:', result);
+                // Update port status immediately untuk feedback visual
+                setPortsData((prev) =>
+                    prev.map((port) => {
+                        if (port.device === deviceId && port.pin === pin) {
+                            return {
+                                ...port,
+                                status: status ? 'on' : 'idle', // Update visual status
+                            };
+                        }
+                        return port;
+                    }),
+                );
+            } else {
+                console.error('Failed to control relay:', result.message);
+            }
+        } catch (error) {
+            console.error('Error controlling relay:', error);
+        }
+    };
+
+    // Client-side timer for real-time updates
     useEffect(() => {
         const interval = setInterval(() => {
             setPortsData((prev) =>
                 prev.map((port) => {
-                    if (port.status === 'on') {
+                    if (port.status === 'on' && port.start_time) {
+                        const currentServerTime = getCurrentTimestamp() + serverTimeOffset;
+                        const elapsedSeconds = Math.max(0, currentServerTime - port.start_time);
+
+                        if (port.type === 't') {
+                            // Timed mode: countdown
+                            if (port.billing > 0) {
+                                const remainingTime = Math.max(0, port.billing - elapsedSeconds);
+                                if (remainingTime > 0) {
+                                    return {
+                                        ...port,
+                                        time: remainingTime,
+                                        total: hitungTotal(port.price, elapsedSeconds, 't'),
+                                    };
+                                } else {
+                                    return { ...port, status: 'off', time: 0 };
+                                }
+                            }
+                        } else if (port.type === 'b') {
+                            // Bebas mode: count up
+                            return {
+                                ...port,
+                                time: elapsedSeconds,
+                                billing: elapsedSeconds,
+                                total: hitungTotal(port.price, elapsedSeconds, 'b'),
+                            };
+                        }
+                    } else if (port.status === 'on' && !port.start_time) {
+                        // Fallback to old behavior for ports without start_time
                         if (port.type === 't') {
                             if (port.time > 0) {
                                 const newTime = port.time - 1;
                                 return {
                                     ...port,
                                     time: newTime,
-                                    total: hitungTotal(port.price, port.billing, newTime, port.type),
+                                    total: hitungTotal(port.price, port.billing - newTime, port.type),
                                 };
                             } else {
                                 return { ...port, status: 'off', time: 0 };
@@ -164,7 +360,8 @@ export default function Dashboard() {
                             return {
                                 ...port,
                                 time: newTime,
-                                total: hitungTotal(port.price, port.billing, newTime, port.type),
+                                billing: newTime,
+                                total: hitungTotal(port.price, newTime, port.type),
                             };
                         }
                     }
@@ -176,24 +373,14 @@ export default function Dashboard() {
         }, 1000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [serverTimeOffset]);
 
-    function hitungTotal(price: string, billing: number, time: number, type: string) {
+    function hitungTotal(price: string, detikDipakai: number, type: string) {
         const tarif = parseInt(price.replace(/\./g, '')) || 0;
-
-        let detikDipakai = 0;
-
-        if (type === 't') {
-            // Mode timed: hitung dari billing - time (sisa waktu)
-            detikDipakai = billing - time;
-        } else if (type === 'b') {
-            // Mode bebas: hitung dari waktu yang sudah berjalan
-            detikDipakai = time;
-        }
 
         if (detikDipakai < 0) detikDipakai = 0;
 
-        // ✅ Konversi detik ke jam untuk perhitungan
+        // Convert detik ke jam untuk perhitungan
         const jam = detikDipakai / 3600; // Convert seconds to hours
         let total = Math.round(tarif * jam);
 
@@ -205,7 +392,7 @@ export default function Dashboard() {
     }
 
     // Toggle status port hanya untuk "on" dan "pause"
-    const togglePortStatus = (port: Port) => {
+    const togglePortStatus = async (port: Port) => {
         if (port.status === 'idle') {
             // Jika idle, hanya buka modal
             setSelectedPort(port);
@@ -213,23 +400,116 @@ export default function Dashboard() {
             return;
         }
 
-        setPortsData((prev) =>
-            prev.map((p) => {
-                if (p.id === port.id) {
-                    if (p.status === 'on') {
-                        setModalConfirmOpen(false);
-
+        if (port.status === 'on') {
+            // Jika ON, pause dahulu (hanya update UI, tidak control relay)
+            setPortsData((prev) =>
+                prev.map((p) => {
+                    if (p.id === port.id) {
                         return { ...p, status: 'pause' };
                     }
-                    if (p.status === 'pause') return { ...p, status: 'on' };
-                }
-                return p;
-            }),
-        );
+                    return p;
+                }),
+            );
+        } else if (port.status === 'pause') {
+            // Jika PAUSE, resume ke ON (tidak control relay karena relay tetap on)
+            setPortsData((prev) =>
+                prev.map((p) => {
+                    if (p.id === port.id) {
+                        return { ...p, status: 'on' };
+                    }
+                    return p;
+                }),
+            );
+        }
+    };
 
-        // TODO: Jika mau dihubungkan ke DB
-        // Panggil API / mutation untuk update status port
-        // Contoh: api.updatePortStatus(port.id, newStatus)
+    // Function untuk benar-benar mematikan relay (stop billing)
+    const stopBilling = async (port: Port) => {
+        if (port.pin && port.device) {
+            // Control relay untuk OFF (status false = aliran mati)
+            await controlRelay(port.device, port.pin, false);
+
+            // Calculate total biaya and durasi for billing stop
+            let detikDipakai = 0;
+            if (port.start_time) {
+                const currentServerTime = getCurrentTimestamp() + serverTimeOffset;
+                detikDipakai = Math.max(0, currentServerTime - port.start_time);
+            } else {
+                // Fallback to current time value
+                detikDipakai = port.type === 'b' ? port.time : port.billing - port.time;
+            }
+
+            const totalBiaya = hitungTotal(port.price, detikDipakai, port.type);
+            let durasi = null;
+
+            if (port.type === 'b') {
+                // bebas mode - use actual elapsed time
+                const hours = Math.floor(detikDipakai / 3600);
+                const minutes = Math.floor((detikDipakai % 3600) / 60);
+                const seconds = detikDipakai % 60;
+                durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            // For timed mode, duration is already set in database
+
+            // Call API to stop billing
+            try {
+                const response = await fetch('/api/billing/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        device_id: port.device,
+                        pin: port.pin,
+                        total_biaya: totalBiaya,
+                        durasi: durasi,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log('Billing stopped successfully:', result);
+                } else {
+                    console.error('Failed to stop billing:', result.message);
+                }
+            } catch (error) {
+                console.error('Error stopping billing:', error);
+                alert('Gagal menghentikan billing di database. Namun relay sudah dimatikan.');
+            }
+
+            // Update UI status
+            setPortsData((prev) =>
+                prev.map((p) => {
+                    if (p.id === port.id) {
+                        return {
+                            ...p,
+                            status: 'idle',
+                            type: '',
+                            nama_pelanggan: '',
+                            time: 0,
+                            billing: 0,
+                            total: 0,
+                            subtotal: 0,
+                            price: '',
+                            hours: '0',
+                            minutes: '0',
+                            promoScheme: 'tanpa-promo',
+                            mode: 'timed',
+                            start_time: undefined,
+                        };
+                    }
+                    return p;
+                }),
+            );
+        }
     };
 
     const handleActionClick = (port: Port) => {
@@ -246,7 +526,7 @@ export default function Dashboard() {
         }
 
         if (port.status === 'pause') {
-            togglePortStatus({ ...port, status: 'on' }); // langsung play lagi
+            togglePortStatus(port); // langsung resume
             return;
         }
     };
@@ -388,7 +668,9 @@ export default function Dashboard() {
                                         <TableCell>{port.nama_port || '-'}</TableCell>
                                         <TableCell>{port.nama_pelanggan || '-'}</TableCell>
                                         <TableCell className="font-mono">{port.time ? timeFormat(port.time) : '-'}</TableCell>
-                                        <TableCell className="font-semibold">{port.total || '-'}</TableCell>
+                                        <TableCell className="font-semibold">
+                                            {port.total ? `Rp ${port.total.toLocaleString('id-ID')}` : '-'}
+                                        </TableCell>
                                         <TableCell className="w-32">{getStatusBadge(port.status)}</TableCell>
                                         <TableCell className="w-32">
                                             {port.device_status === 'online' ? (
@@ -441,9 +723,10 @@ export default function Dashboard() {
                 <ModalSetPort
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    port={selectedPort} // langsung kirim seluruh objek Port
-                    timeFormat={timeFormat} // tetap sama
+                    port={selectedPort}
+                    timeFormat={timeFormat}
                     onUpdatePort={handleUpdatePort}
+                    controlRelay={controlRelay}
                 />
             )}
             {selectedPort && (
@@ -454,20 +737,22 @@ export default function Dashboard() {
                                 <div className="rounded-full bg-yellow-50 p-2">
                                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
                                 </div>
-                                <DialogTitle className="text-lg font-semibold">Konfirmasi Pause D</DialogTitle>
+                                <DialogTitle className="text-lg font-semibold">Konfirmasi Aksi {selectedPort.no_port}</DialogTitle>
                             </div>
                             <DialogDescription className="mt-3 text-sm text-muted-foreground">
-                                Apakah Anda yakin ingin mem-pause {selectedPort.no_port}?
+                                Pilih aksi yang ingin dilakukan pada {selectedPort.no_port}:
                             </DialogDescription>
                         </DialogHeader>
 
-                        <div className="mt-4 rounded-md border border-yellow-100 bg-orange-50 p-3">
-                            <p className="text-sm font-medium text-yellow-800">Peringatan</p>
-                            <p className="mt-1 text-sm text-yellow-700">
-                                Jika <span className="font-semibold">dipause</span>, maka relay akan
-                                <span className="font-semibold text-red-700"> mati</span> yang berakibat listrik
-                                <span className="font-semibold text-red-700"> mati</span>.
-                            </p>
+                        <div className="mt-4 space-y-3">
+                            <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
+                                <p className="text-sm font-medium text-blue-800">Pause</p>
+                                <p className="mt-1 text-sm text-blue-700">Hanya menghentikan waktu billing, relay tetap ON (listrik tetap nyala).</p>
+                            </div>
+                            <div className="rounded-md border border-red-100 bg-red-50 p-3">
+                                <p className="text-sm font-medium text-red-800">Stop & Matikan Relay</p>
+                                <p className="mt-1 text-sm text-red-700">Menghentikan billing dan mematikan relay (listrik mati).</p>
+                            </div>
                         </div>
 
                         <DialogFooter className="mt-6">
@@ -476,14 +761,26 @@ export default function Dashboard() {
                                     Batal
                                 </Button>
                                 <Button
+                                    variant="outline"
                                     onClick={() => {
                                         if (selectedPort) {
-                                            setPortsData((prev) => prev.map((p) => (p.id === selectedPort.id ? { ...p, status: 'pause' } : p)));
+                                            togglePortStatus(selectedPort);
                                         }
                                         setModalConfirmOpen(false);
                                     }}
                                 >
-                                    Lanjutkan
+                                    Pause
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => {
+                                        if (selectedPort) {
+                                            stopBilling(selectedPort);
+                                        }
+                                        setModalConfirmOpen(false);
+                                    }}
+                                >
+                                    Stop & Matikan
                                 </Button>
                             </div>
                         </DialogFooter>

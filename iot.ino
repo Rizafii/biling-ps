@@ -17,7 +17,7 @@ String deviceID = "SS1"; // Unique device identifier
 
 // API endpoints configuration
 String heartbeatEndpoint = "/api/esp/heartbeat";
-String relayEndpoint = "/api/esp/relay";
+String relayStatusEndpoint = "/api/esp/relay-status/"; // Will append device_id
 
 // Access Point configuration
 const char* ap_ssid = "ESP32_Config";
@@ -25,9 +25,9 @@ const char* ap_password = "12345678";
 
 // Timing configuration
 unsigned long lastHeartbeat = 0;
-unsigned long heartbeatInterval = 500; // 5ms
-unsigned long lastRelayUpdate = 0;
-unsigned long relayUpdateInterval = 200; // 2ms
+unsigned long heartbeatInterval = 5000; // 5 seconds
+unsigned long lastRelayCheck = 0;
+unsigned long relayCheckInterval = 1000; // 1 second untuk polling relay status
 
 // Web server for configuration
 WebServer server(80);
@@ -78,10 +78,16 @@ void loop() {
   }
   
   if (wifiConnected && !configMode) {
-    // Send heartbeat and get relay status
+    // Send heartbeat
     if (millis() - lastHeartbeat >= heartbeatInterval) {
-      sendHeartbeatAndGetStatus();
+      sendHeartbeat();
       lastHeartbeat = millis();
+    }
+    
+    // Poll relay status from server
+    if (millis() - lastRelayCheck >= relayCheckInterval) {
+      getRelayStatusFromServer();
+      lastRelayCheck = millis();
     }
     
     // Check if we lost WiFi connection
@@ -421,7 +427,7 @@ void setRelayState(int relayIndex, bool state) {
   }
 }
 
-void sendHeartbeatAndGetStatus() {
+void sendHeartbeat() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected, skipping heartbeat");
     return;
@@ -432,27 +438,17 @@ void sendHeartbeatAndGetStatus() {
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(5000); // 5 second timeout
   
-  // Prepare heartbeat data with validation
-  DynamicJsonDocument doc(1024);
+  // Prepare heartbeat data (simple, tanpa relay status)
+  DynamicJsonDocument doc(512);
   doc["device_id"] = deviceID;
   doc["timestamp"] = millis();
   doc["ip_address"] = WiFi.localIP().toString();
-  doc["status"] = "online";
-  
-  // Add relay states
-  JsonArray relays = doc.createNestedArray("relays");
-  for (int i = 0; i < numRelays; i++) {
-    JsonObject relay = relays.createNestedObject();
-    relay["pin"] = relayPins[i];
-    relay["state"] = relayStates[i];
-  }
   
   String payload;
   serializeJson(doc, payload);
   
   Serial.println("Sending heartbeat to: " + serverURL + heartbeatEndpoint);
   Serial.println("Device ID: " + deviceID);
-  Serial.println("Payload: " + payload);
   
   int httpResponseCode = http.POST(payload);
   
@@ -460,65 +456,84 @@ void sendHeartbeatAndGetStatus() {
     String response = http.getString();
     Serial.println("Heartbeat response (" + String(httpResponseCode) + "): " + response);
     
-    // Parse response to validate device registration
     if (httpResponseCode == 200) {
       DynamicJsonDocument responseDoc(1024);
       DeserializationError error = deserializeJson(responseDoc, response);
       
-      if (!error) {
-        if (responseDoc["success"] == true) {
-          String serverDeviceId = responseDoc["device_id"];
-          if (serverDeviceId == deviceID) {
-            Serial.println("Heartbeat successful - Device ID validated");
-          } else {
-            Serial.println("Warning: Device ID mismatch! ESP: " + deviceID + ", Server: " + serverDeviceId);
-          }
-          
-          // Handle any relay commands from server
-          if (responseDoc.containsKey("relays")) {
-            parseRelayCommands(response);
-          }
-        } else {
-          Serial.println("Heartbeat failed: " + String(responseDoc["message"].as<String>()));
-        }
+      if (!error && responseDoc["success"] == true) {
+        Serial.println("Heartbeat successful");
       } else {
-        Serial.println("Failed to parse heartbeat response");
+        Serial.println("Heartbeat failed: " + String(responseDoc["message"].as<String>()));
       }
     }
   } else {
     Serial.println("Error sending heartbeat: " + String(httpResponseCode));
-    Serial.println("HTTP Error: " + http.errorToString(httpResponseCode));
   }
   
   http.end();
 }
 
-void parseRelayCommands(String response) {
-  DynamicJsonDocument doc(1024);
-  DeserializationError error = deserializeJson(doc, response);
-  
-  if (error) {
-    Serial.println("Failed to parse relay commands: " + String(error.c_str()));
+void getRelayStatusFromServer() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected, skipping relay status check");
     return;
   }
   
-  if (doc.containsKey("relays")) {
-    JsonArray relays = doc["relays"];
+  HTTPClient http;
+  String url = serverURL + relayStatusEndpoint + deviceID;
+  http.begin(url);
+  http.setTimeout(5000); // 5 second timeout
+  
+  Serial.println("Getting relay status from: " + url);
+  
+  int httpResponseCode = http.GET();
+  
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.println("Relay status response (" + String(httpResponseCode) + "): " + response);
     
-    for (JsonVariant relay : relays) {
-      int pin = relay["pin"];
-      bool state = relay["state"];
+    if (httpResponseCode == 200) {
+      DynamicJsonDocument doc(1024);
+      DeserializationError error = deserializeJson(doc, response);
       
-      // Find relay index by pin
-      for (int i = 0; i < numRelays; i++) {
-        if (relayPins[i] == pin) {
-          if (relayStates[i] != state) {
-            setRelayState(i, state);
-            Serial.println("Updated relay " + String(i + 1) + " from server command");
+      if (!error && doc["success"] == true) {
+        JsonArray relays = doc["relays"];
+        
+        for (JsonVariant relay : relays) {
+          int pin = relay["pin"];
+          int status = relay["status"]; // 0 = relay ON (aliran OFF), 1 = relay OFF (aliran ON)
+          
+          // Find relay index by pin
+          int relayIndex = -1;
+          for (int i = 0; i < numRelays; i++) {
+            if (relayPins[i] == pin) {
+              relayIndex = i;
+              break;
+            }
           }
-          break;
+          
+          if (relayIndex >= 0) {
+            // Update relay berdasarkan status dari server
+            // Status 0 = aliran OFF (relay ON/HIGH)
+            // Status 1 = aliran ON (relay OFF/LOW)
+            bool relayState = (status == 0); // Inverse logic
+            
+            if (relayStates[relayIndex] != relayState) {
+              digitalWrite(relayPins[relayIndex], relayState ? HIGH : LOW);
+              relayStates[relayIndex] = relayState;
+              Serial.println("Updated relay " + String(relayIndex + 1) + 
+                           " (Pin " + String(pin) + ") to " + 
+                           (status == 1 ? "ON (aliran)" : "OFF (aliran)"));
+            }
+          }
         }
+      } else {
+        Serial.println("Failed to parse relay status response");
       }
     }
+  } else {
+    Serial.println("Error getting relay status: " + String(httpResponseCode));
   }
+  
+  http.end();
 }
