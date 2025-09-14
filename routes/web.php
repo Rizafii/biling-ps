@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\EspDeviceController;
+use App\Http\Controllers\HistoriController;
+
 // use App\Http\Controllers\HistoriController; // aktifkan kalau sudah siap
 
 /*
@@ -26,7 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('/device', EspDeviceController::class);
 
     // Histori (nanti kalau sudah ada controller)
-    // Route::resource('histori', HistoriController::class);
+    Route::resource('histori', HistoriController::class);
 
     // Halaman histori index manual
     Route::get('/histori', function () {

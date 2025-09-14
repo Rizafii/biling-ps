@@ -45,6 +45,8 @@ export default function Index({ promos }: Props) {
     const [search, setSearch] = useState("")
     const [sortBy, setSortBy] = useState<"name" | "type" | "active">("name")
     const [openAdd, setOpenAdd] = useState(false)
+    const [filter, setFilter] = useState<"all" | "aktif" | "selesai">("all")
+
     const [openDetail, setOpenDetail] = useState(false)
     const [selectedPromo, setSelectedPromo] = useState<typeof promos[0] | null>(null)
     const [openEdit, setOpenEdit] = useState(false)
@@ -60,10 +62,19 @@ export default function Index({ promos }: Props) {
     }
 
     const filteredPromos = useMemo(() => {
-        const data = promos.filter((p) =>
+        let data = promos.filter((p) =>
             p.name.toLowerCase().includes(search.toLowerCase()) ||
             (p.code ?? "").toLowerCase().includes(search.toLowerCase())
         )
+
+
+        if (filter !== "all") {
+            if (filter === "aktif") data = data.filter((p) => p.is_active)
+            else if (filter === "selesai") data = data.filter((p) => !p.is_active)
+            else data = data.filter((p) => p.type === filter)
+        }
+
+
         switch (sortBy) {
             case "name":
                 return [...data].sort((a, b) => a.name.localeCompare(b.name))
@@ -74,12 +85,13 @@ export default function Index({ promos }: Props) {
             default:
                 return data
         }
-    }, [search, sortBy])
+
+    }, [search, filter, sortBy, promos])
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Promo" />
-            <Card>
+            <Card className="m-4">
                 <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <CardTitle className="text-2xl font-bold">Manajemen Promo</CardTitle>
                     <div className="flex items-center gap-2">
@@ -340,28 +352,52 @@ export default function Index({ promos }: Props) {
 
             {/* Modal Detail Promo */}
             <Dialog open={openDetail} onOpenChange={setOpenDetail}>
-                <DialogContent className="max-w-md">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Detail Promo</DialogTitle>
                     </DialogHeader>
                     {selectedPromo && (
-                        <div className="space-y-2">
-                            <p><strong>Nama:</strong> {selectedPromo.name}</p>
-                            <p><strong>Kode:</strong> {selectedPromo.code ?? "-"}</p>
-                            <p><strong>Tipe:</strong> {selectedPromo.type}</p>
-                            <p><strong>Nilai:</strong> {selectedPromo.value ?? "-"}</p>
-                            <p><strong>Min Durasi:</strong> {selectedPromo.min_duration ?? "-"}</p>
-                            <p>
-                                <strong>Status:</strong>{" "}
-                                {selectedPromo.is_active ? "Aktif" : "Nonaktif"}
-                            </p>
+                        <div className="space-y-3">
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Nama</span>
+                                <span>{selectedPromo.name}</span>
+                            </div>
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Kode</span>
+                                <span>{selectedPromo.code ?? "-"}</span>
+                            </div>
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Tipe</span>
+                                <span className="capitalize">{selectedPromo.type}</span>
+                            </div>
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Nilai</span>
+                                <span>{selectedPromo.value ?? "-"}</span>
+                            </div>
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                                <span className="font-medium">Min Durasi</span>
+                                <span>{selectedPromo.min_duration ?? "-"}</span>
+                            </div>
+                            <div className="flex justify-between py-2">
+                                <span className="font-medium">Status</span>
+                                <span
+                                    className={
+                                        selectedPromo.is_active ? "text-green-600 font-semibold" : "text-red-600 font-semibold"
+                                    }
+                                >
+                                    {selectedPromo.is_active ? "Aktif" : "Nonaktif"}
+                                </span>
+                            </div>
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setOpenDetail(false)}>Tutup</Button>
+                        <Button variant="outline" onClick={() => setOpenDetail(false)}>
+                            Tutup
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
         </AppLayout>
     )
 }
