@@ -12,7 +12,7 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { AlertTriangle, ChevronDown, ChevronUp, Pause, Play, Settings } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard().url }];
 
@@ -28,9 +28,9 @@ interface Port {
     duration: string; // "HH:MM:SS"
     price: string;
     status: 'idle' | 'on' | 'pause' | 'off';
-    time: number; // dalam menit atau detik, sesuai format timeFormat
+    time: number; // dalam detik
     total: number;
-    billing: number; // menit
+    billing: number; // detik
     subtotal: number;
     diskon: number;
     promoList: { id: string; label: string }[];
@@ -40,7 +40,10 @@ interface Port {
     promoScheme: string;
     device_status?: 'online' | 'offline';
     last_heartbeat?: string;
+    server_time?: number; // Server timestamp
+    start_time?: number; // Start billing timestamp
 }
+
 export default function Dashboard() {
     const timeFormat = (t: number) => {
         const h = Math.floor(t / 3600);
@@ -58,77 +61,134 @@ export default function Dashboard() {
     const [selectedPort, setSelectedPort] = useState<Port | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+    const [serverTimeOffset, setServerTimeOffset] = useState(0); // Offset between client and server time
+    const serverTimeRef = useRef<number>(0);
+
+    // Calculate current client timestamp
+    const getCurrentTimestamp = () => Math.floor(Date.now() / 1000);
 
     // Fetch ports data from API
-    const fetchPorts = useCallback(
-        async (showLoading = false) => {
-            try {
-                if (showLoading) {
-                    setIsLoading(true);
+    const fetchPorts = useCallback(async (showLoading = false) => {
+        try {
+            if (showLoading) {
+                setIsLoading(true);
+            }
+
+            const response = await fetch('/api/ports', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success && Array.isArray(result.ports)) {
+                // Calculate server time offset
+                if (result.server_time) {
+                    const clientTime = getCurrentTimestamp();
+                    const serverTime = result.server_time;
+                    setServerTimeOffset(serverTime - clientTime);
+                    serverTimeRef.current = serverTime;
                 }
 
-                const response = await fetch('/api/ports', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    },
-                    credentials: 'same-origin',
-                });
+                // Process ports data
+                setPortsData((prevPorts) => {
+                    const newPorts = result.ports.map((apiPort: any) => {
+                        const existingPort = prevPorts.find((p) => p.id === apiPort.id);
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                        // For active billings, recalculate time based on server data
+                        if (apiPort.start_time && (apiPort.type === 'b' || apiPort.type === 't')) {
+                            const currentServerTime = serverTimeRef.current || apiPort.server_time || getCurrentTimestamp();
+                            const elapsedSeconds = Math.max(0, currentServerTime - apiPort.start_time);
 
-                const result = await response.json();
-
-                if (result.success && Array.isArray(result.ports)) {
-                    // Merge with existing ports data to preserve user-set values
-                    setPortsData((prevPorts) => {
-                        const newPorts = result.ports.map((apiPort: any) => {
-                            const existingPort = prevPorts.find((p) => p.id === apiPort.id);
-
-                            if (existingPort) {
-                                // Keep user-set values but update device status
-                                return {
-                                    ...existingPort,
-                                    device: apiPort.device,
-                                    device_name: apiPort.device_name,
-                                    device_status: apiPort.device_status,
-                                    last_heartbeat: apiPort.last_heartbeat,
-                                    status: apiPort.device_status === 'offline' ? 'off' : existingPort.status,
-                                };
-                            } else {
-                                // New port from API with default values
-                                return {
-                                    ...apiPort,
-                                    promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
-                                    mode: 'timed' as const,
-                                    hours: '0',
-                                    minutes: '0',
-                                    promoScheme: 'tanpa-promo',
-                                };
+                            if (apiPort.type === 'b') {
+                                // Bebas mode: use elapsed time
+                                apiPort.time = elapsedSeconds;
+                                apiPort.billing = elapsedSeconds;
+                            } else if (apiPort.type === 't') {
+                                // Timed mode: calculate remaining time
+                                if (apiPort.billing && apiPort.billing > 0) {
+                                    apiPort.time = Math.max(0, apiPort.billing - elapsedSeconds);
+                                }
                             }
-                        });
 
-                        return newPorts;
+                            // Recalculate total
+                            const tarif = parseInt((apiPort.price || '0').replace(/\./g, '')) || 0;
+                            const jam = elapsedSeconds / 3600;
+                            let total = Math.round(tarif * jam);
+                            const sisa = total % 100;
+                            if (sisa !== 0) total = total + (100 - sisa);
+                            apiPort.total = total;
+                            apiPort.subtotal = total;
+
+                            // Format duration
+                            const displaySeconds = apiPort.type === 'b' ? elapsedSeconds : apiPort.time;
+                            const h = Math.floor(displaySeconds / 3600);
+                            const m = Math.floor((displaySeconds % 3600) / 60);
+                            const s = displaySeconds % 60;
+                            apiPort.duration = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                        }
+
+                        if (existingPort) {
+                            // Keep some user-set values but update server data
+                            return {
+                                ...existingPort,
+                                device: apiPort.device,
+                                device_name: apiPort.device_name,
+                                device_status: apiPort.device_status,
+                                last_heartbeat: apiPort.last_heartbeat,
+                                status: apiPort.device_status === 'offline' ? 'off' : apiPort.status || existingPort.status,
+                                // Update time-based data from server
+                                time: apiPort.time !== undefined ? apiPort.time : existingPort.time,
+                                billing: apiPort.billing !== undefined ? apiPort.billing : existingPort.billing,
+                                total: apiPort.total !== undefined ? apiPort.total : existingPort.total,
+                                subtotal: apiPort.subtotal !== undefined ? apiPort.subtotal : existingPort.subtotal,
+                                duration: apiPort.duration || existingPort.duration,
+                                server_time: apiPort.server_time,
+                                start_time: apiPort.start_time,
+                                // Keep billing data from API if exists
+                                nama_pelanggan: apiPort.nama_pelanggan || existingPort.nama_pelanggan,
+                                price: apiPort.price || existingPort.price,
+                                type: apiPort.type || existingPort.type,
+                                mode: apiPort.mode || existingPort.mode,
+                                promoScheme: apiPort.promoScheme || existingPort.promoScheme,
+                            };
+                        } else {
+                            // New port from API with default values
+                            return {
+                                ...apiPort,
+                                promoList: [{ id: 'tanpa-promo', label: 'Tanpa Promo' }],
+                                mode: apiPort.mode || 'timed',
+                                hours: apiPort.hours || '0',
+                                minutes: apiPort.minutes || '0',
+                                promoScheme: apiPort.promoScheme || 'tanpa-promo',
+                            };
+                        }
                     });
 
-                    setLastUpdate(new Date());
-                } else {
-                    console.warn('Invalid response format:', result);
-                }
-            } catch (error) {
-                console.error('Error fetching ports:', error);
-            } finally {
-                if (showLoading) {
-                    setIsLoading(false);
-                }
+                    return newPorts;
+                });
+
+                setLastUpdate(new Date());
+            } else {
+                console.warn('Invalid response format:', result);
             }
-        },
-        [], // ✅ Remove portsData dependency to avoid infinite loop
-    );
+        } catch (error) {
+            console.error('Error fetching ports:', error);
+        } finally {
+            if (showLoading) {
+                setIsLoading(false);
+            }
+        }
+    }, []);
 
     // Function to check expired timed billings
     const checkExpiredBillings = useCallback(async () => {
@@ -169,6 +229,7 @@ export default function Dashboard() {
                                         minutes: '0',
                                         promoScheme: 'tanpa-promo',
                                         mode: 'timed',
+                                        start_time: undefined,
                                     };
                                 }
                                 return p;
@@ -189,7 +250,7 @@ export default function Dashboard() {
         fetchPorts(true);
 
         const interval = setInterval(() => {
-            // ✅ Skip auto-refresh jika modal sedang terbuka
+            // Skip auto-refresh jika modal sedang terbuka
             if (!modalOpen && !modalConfirmOpen) {
                 fetchPorts(false); // Auto refresh tanpa loading indicator
                 checkExpiredBillings(); // Check for expired timed billings
@@ -249,18 +310,47 @@ export default function Dashboard() {
         }
     };
 
+    // Client-side timer for real-time updates
     useEffect(() => {
         const interval = setInterval(() => {
             setPortsData((prev) =>
                 prev.map((port) => {
-                    if (port.status === 'on') {
+                    if (port.status === 'on' && port.start_time) {
+                        const currentServerTime = getCurrentTimestamp() + serverTimeOffset;
+                        const elapsedSeconds = Math.max(0, currentServerTime - port.start_time);
+
+                        if (port.type === 't') {
+                            // Timed mode: countdown
+                            if (port.billing > 0) {
+                                const remainingTime = Math.max(0, port.billing - elapsedSeconds);
+                                if (remainingTime > 0) {
+                                    return {
+                                        ...port,
+                                        time: remainingTime,
+                                        total: hitungTotal(port.price, elapsedSeconds, 't'),
+                                    };
+                                } else {
+                                    return { ...port, status: 'off', time: 0 };
+                                }
+                            }
+                        } else if (port.type === 'b') {
+                            // Bebas mode: count up
+                            return {
+                                ...port,
+                                time: elapsedSeconds,
+                                billing: elapsedSeconds,
+                                total: hitungTotal(port.price, elapsedSeconds, 'b'),
+                            };
+                        }
+                    } else if (port.status === 'on' && !port.start_time) {
+                        // Fallback to old behavior for ports without start_time
                         if (port.type === 't') {
                             if (port.time > 0) {
                                 const newTime = port.time - 1;
                                 return {
                                     ...port,
                                     time: newTime,
-                                    total: hitungTotal(port.price, port.billing, newTime, port.type),
+                                    total: hitungTotal(port.price, port.billing - newTime, port.type),
                                 };
                             } else {
                                 return { ...port, status: 'off', time: 0 };
@@ -270,7 +360,8 @@ export default function Dashboard() {
                             return {
                                 ...port,
                                 time: newTime,
-                                total: hitungTotal(port.price, port.billing, newTime, port.type),
+                                billing: newTime,
+                                total: hitungTotal(port.price, newTime, port.type),
                             };
                         }
                     }
@@ -282,24 +373,14 @@ export default function Dashboard() {
         }, 1000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [serverTimeOffset]);
 
-    function hitungTotal(price: string, billing: number, time: number, type: string) {
+    function hitungTotal(price: string, detikDipakai: number, type: string) {
         const tarif = parseInt(price.replace(/\./g, '')) || 0;
-
-        let detikDipakai = 0;
-
-        if (type === 't') {
-            // Mode timed: hitung dari billing - time (sisa waktu)
-            detikDipakai = billing - time;
-        } else if (type === 'b') {
-            // Mode bebas: hitung dari waktu yang sudah berjalan
-            detikDipakai = time;
-        }
 
         if (detikDipakai < 0) detikDipakai = 0;
 
-        // ✅ Konversi detik ke jam untuk perhitungan
+        // Convert detik ke jam untuk perhitungan
         const jam = detikDipakai / 3600; // Convert seconds to hours
         let total = Math.round(tarif * jam);
 
@@ -349,19 +430,26 @@ export default function Dashboard() {
             await controlRelay(port.device, port.pin, false);
 
             // Calculate total biaya and durasi for billing stop
-            const totalBiaya = hitungTotal(port.price, port.billing, port.time, port.type);
+            let detikDipakai = 0;
+            if (port.start_time) {
+                const currentServerTime = getCurrentTimestamp() + serverTimeOffset;
+                detikDipakai = Math.max(0, currentServerTime - port.start_time);
+            } else {
+                // Fallback to current time value
+                detikDipakai = port.type === 'b' ? port.time : port.billing - port.time;
+            }
+
+            const totalBiaya = hitungTotal(port.price, detikDipakai, port.type);
             let durasi = null;
 
             if (port.type === 'b') {
-                // bebas mode
-                // Convert seconds to HH:MM:SS format
-                const totalSeconds = port.time;
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
+                // bebas mode - use actual elapsed time
+                const hours = Math.floor(detikDipakai / 3600);
+                const minutes = Math.floor((detikDipakai % 3600) / 60);
+                const seconds = detikDipakai % 60;
                 durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }
-            // For timed mode, duration is already set in database, so we don't need to calculate it here
+            // For timed mode, duration is already set in database
 
             // Call API to stop billing
             try {
@@ -415,6 +503,7 @@ export default function Dashboard() {
                             minutes: '0',
                             promoScheme: 'tanpa-promo',
                             mode: 'timed',
+                            start_time: undefined,
                         };
                     }
                     return p;
@@ -579,7 +668,9 @@ export default function Dashboard() {
                                         <TableCell>{port.nama_port || '-'}</TableCell>
                                         <TableCell>{port.nama_pelanggan || '-'}</TableCell>
                                         <TableCell className="font-mono">{port.time ? timeFormat(port.time) : '-'}</TableCell>
-                                        <TableCell className="font-semibold">{port.total || '-'}</TableCell>
+                                        <TableCell className="font-semibold">
+                                            {port.total ? `Rp ${port.total.toLocaleString('id-ID')}` : '-'}
+                                        </TableCell>
                                         <TableCell className="w-32">{getStatusBadge(port.status)}</TableCell>
                                         <TableCell className="w-32">
                                             {port.device_status === 'online' ? (
@@ -632,10 +723,10 @@ export default function Dashboard() {
                 <ModalSetPort
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    port={selectedPort} // langsung kirim seluruh objek Port
-                    timeFormat={timeFormat} // tetap sama
+                    port={selectedPort}
+                    timeFormat={timeFormat}
                     onUpdatePort={handleUpdatePort}
-                    controlRelay={controlRelay} // Pass function controlRelay
+                    controlRelay={controlRelay}
                 />
             )}
             {selectedPort && (
@@ -673,7 +764,7 @@ export default function Dashboard() {
                                     variant="outline"
                                     onClick={() => {
                                         if (selectedPort) {
-                                            togglePortStatus(selectedPort); // Pause tanpa control relay
+                                            togglePortStatus(selectedPort);
                                         }
                                         setModalConfirmOpen(false);
                                     }}
@@ -684,7 +775,7 @@ export default function Dashboard() {
                                     variant="destructive"
                                     onClick={() => {
                                         if (selectedPort) {
-                                            stopBilling(selectedPort); // Stop dan control relay OFF
+                                            stopBilling(selectedPort);
                                         }
                                         setModalConfirmOpen(false);
                                     }}

@@ -194,7 +194,9 @@ class EspDeviceController extends Controller
                     }
                 }
 
-                // Prepare port data
+                // Prepare port data with server time
+                $serverTime = Carbon::now();
+
                 $portData = [
                     'id' => $portKey,
                     'device' => $device->device_id,
@@ -218,24 +220,49 @@ class EspDeviceController extends Controller
                     'hours' => '0',
                     'minutes' => '0',
                     'promoScheme' => 'tanpa-promo',
+                    'server_time' => $serverTime->timestamp, // Add server timestamp
+                    'start_time' => null, // Will be set if there's active billing
                 ];
 
                 // If there's active billing, populate billing data
                 if ($activeBilling) {
                     $waktuMulai = Carbon::parse($activeBilling->waktu_mulai);
                     $waktuSekarang = Carbon::now();
+
+                    // Calculate elapsed time in seconds
                     $detikBerjalan = $waktuSekarang->diffInSeconds($waktuMulai);
+
+                    // For timed mode, calculate remaining time
+                    if ($activeBilling->mode === 'timer' && $activeBilling->durasi) {
+                        $durasiParts = explode(':', $activeBilling->durasi);
+                        $totalDetikDurasi = ($durasiParts[0] * 3600) + ($durasiParts[1] * 60) + ($durasiParts[2] ?? 0);
+                        $sisaDetik = max(0, $totalDetikDurasi - $detikBerjalan);
+
+                        $portData['time'] = $sisaDetik; // Remaining time for timed mode
+                        $portData['billing'] = $totalDetikDurasi; // Total allocated time
+                    } else {
+                        // For bebas mode, use elapsed time
+                        $portData['time'] = $detikBerjalan; // Elapsed time for bebas mode
+                        $portData['billing'] = $detikBerjalan;
+                    }
 
                     $portData['type'] = $activeBilling->mode === 'timer' ? 't' : 'b';
                     $portData['nama_pelanggan'] = $activeBilling->nama_pelanggan;
                     $portData['price'] = number_format((float) $activeBilling->tarif_perjam, 0, ',', '.');
                     $portData['mode'] = $activeBilling->mode === 'timer' ? 'timed' : 'bebas';
-                    $portData['time'] = $detikBerjalan;
-                    $portData['billing'] = $detikBerjalan; // For now, same as time
+                    $portData['start_time'] = $waktuMulai->timestamp; // Add start timestamp
 
                     // Calculate current total
-                    $jam = $detikBerjalan / 3600;
-                    $currentTotal = round($activeBilling->tarif_perjam * $jam);
+                    if ($activeBilling->mode === 'timer') {
+                        // For timed mode, calculate based on elapsed time
+                        $jam = $detikBerjalan / 3600;
+                        $currentTotal = round($activeBilling->tarif_perjam * $jam);
+                    } else {
+                        // For bebas mode, calculate based on elapsed time
+                        $jam = $detikBerjalan / 3600;
+                        $currentTotal = round($activeBilling->tarif_perjam * $jam);
+                    }
+
                     $sisa = $currentTotal % 100;
                     if ($sisa !== 0)
                         $currentTotal = $currentTotal + (100 - $sisa);
@@ -243,10 +270,18 @@ class EspDeviceController extends Controller
                     $portData['total'] = $currentTotal;
                     $portData['subtotal'] = $currentTotal;
 
-                    // Format duration
-                    $h = floor($detikBerjalan / 3600);
-                    $m = floor(($detikBerjalan % 3600) / 60);
-                    $s = $detikBerjalan % 60;
+                    // Format duration based on mode
+                    if ($activeBilling->mode === 'timer') {
+                        // For timed mode, show remaining time
+                        $h = floor($sisaDetik / 3600);
+                        $m = floor(($sisaDetik % 3600) / 60);
+                        $s = $sisaDetik % 60;
+                    } else {
+                        // For bebas mode, show elapsed time
+                        $h = floor($detikBerjalan / 3600);
+                        $m = floor(($detikBerjalan % 3600) / 60);
+                        $s = $detikBerjalan % 60;
+                    }
                     $portData['duration'] = sprintf('%02d:%02d:%02d', $h, $m, $s);
 
                     if ($activeBilling->promo) {
@@ -261,6 +296,7 @@ class EspDeviceController extends Controller
         return response()->json([
             'success' => true,
             'ports' => $ports,
+            'server_time' => Carbon::now()->timestamp, // Add global server time
         ]);
     }
 

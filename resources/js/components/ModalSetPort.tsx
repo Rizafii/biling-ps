@@ -33,6 +33,8 @@ interface Port {
     promoScheme: string;
     device_status?: 'online' | 'offline';
     last_heartbeat?: string;
+    server_time?: number;
+    start_time?: number;
 }
 
 interface ModalSetPortProps {
@@ -46,7 +48,7 @@ interface ModalSetPortProps {
 
 export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, controlRelay }: ModalSetPortProps) {
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [isFormDirty, setIsFormDirty] = useState(false); // ✅ Track if user has modified form
+    const [isFormDirty, setIsFormDirty] = useState(false);
     const [portData, setPortData] = useState({
         customer: '',
         hourlyRate: '',
@@ -56,28 +58,28 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
         minutes: '',
     });
 
-    // ✅ Reset form data when modal opens
+    // Get current timestamp for server time calculations
+    const getCurrentTimestamp = () => Math.floor(Date.now() / 1000);
+
+    // Reset form data when modal opens
     const resetFormData = () => {
         setPortData({
             customer: '',
             hourlyRate: '',
-            promoScheme: 'tanpa-promo', // Set default promo
+            promoScheme: 'tanpa-promo',
             mode: 'timed',
             hours: '',
             minutes: '',
         });
-        setIsFormDirty(false); // ✅ Reset dirty state
+        setIsFormDirty(false);
     };
 
     useEffect(() => {
         if (isOpen && port) {
-            // ✅ Jangan update form data jika user sedang mengetik (form dirty)
             if (!isFormDirty) {
                 if (port.status === 'idle') {
-                    // ✅ Jika port idle, reset form ke kosong
                     resetFormData();
                 } else {
-                    // ✅ Jika port sedang aktif, ambil data dari port
                     setPortData({
                         customer: port.nama_pelanggan || '',
                         hourlyRate: port.price || '',
@@ -91,14 +93,14 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
         }
     }, [isOpen, port, isFormDirty]);
 
-    // ✅ Konversi jam dan menit ke detik (bukan menit)
+    // Convert jam dan menit ke detik
     function jamMenitToDetik(hours: string, minutes: string): number {
         const h = parseInt(hours || '0', 10);
         const m = parseInt(minutes || '0', 10);
-        return h * 3600 + m * 60; // Convert to seconds
+        return h * 3600 + m * 60;
     }
 
-    // ✅ Hitung total berdasarkan tarif per jam
+    // Hitung total berdasarkan tarif per jam
     function hitungTotal(hourlyRate: string, timeInSeconds: number, mode: string): number {
         const tarif = parseInt(hourlyRate.replace(/\./g, '')) || 0;
 
@@ -106,7 +108,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             return 0; // Untuk timed, total dihitung saat countdown
         } else {
             // Untuk bebas, hitung berdasarkan waktu yang sudah berjalan
-            const jam = timeInSeconds / 3600; // Convert seconds to hours
+            const jam = timeInSeconds / 3600;
             let total = Math.round(tarif * jam);
 
             // Pembulatan ke atas ke 100 terdekat
@@ -152,7 +154,6 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
 
         // Create billing record in database
         try {
-            // Prepare duration for timed mode
             let durasi = null;
             if (portData.mode === 'timed') {
                 const hours = parseInt(portData.hours || '0', 10);
@@ -172,10 +173,10 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                     device_id: port.device,
                     pin: port.pin,
                     nama_pelanggan: portData.customer,
-                    mode: portData.mode === 'timed' ? 'timer' : 'bebas', // Convert to database enum
+                    mode: portData.mode === 'timed' ? 'timer' : 'bebas',
                     tarif_perjam: parseInt(portData.hourlyRate.replace(/\./g, '')) || 0,
                     promo_id: portData.promoScheme !== 'tanpa-promo' ? portData.promoScheme : null,
-                    durasi: durasi, // Include duration for timed mode
+                    durasi: durasi,
                 }),
             });
 
@@ -190,31 +191,35 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             }
 
             console.log('Billing started successfully:', result);
+
+            // Get current server time for start_time
+            const startTime = getCurrentTimestamp();
+
+            const updatedPort: Port = {
+                ...port,
+                nama_pelanggan: portData.customer,
+                price: portData.hourlyRate,
+                promoScheme: portData.promoScheme,
+                mode: portData.mode,
+                hours: portData.hours,
+                minutes: portData.minutes,
+                type: portData.mode === 'timed' ? 't' : 'b',
+                status: 'on',
+                time: totalSeconds,
+                billing: billingSeconds,
+                total: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
+                subtotal: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
+                diskon: 0,
+                start_time: startTime, // Set start time for accurate timer
+            };
+
+            onUpdatePort(updatedPort);
         } catch (error) {
             console.error('Error creating billing record:', error);
             alert('Gagal membuat record billing. Namun relay sudah menyala.');
-            // Don't return here, continue with UI update
         }
 
-        const updatedPort: Port = {
-            ...port,
-            nama_pelanggan: portData.customer,
-            price: portData.hourlyRate,
-            promoScheme: portData.promoScheme,
-            mode: portData.mode,
-            hours: portData.hours,
-            minutes: portData.minutes,
-            type: portData.mode === 'timed' ? 't' : 'b',
-            status: 'on',
-            time: totalSeconds, // Time in seconds
-            billing: billingSeconds,
-            total: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
-            subtotal: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
-            diskon: 0,
-        };
-
-        onUpdatePort(updatedPort);
-        setIsFormDirty(false); // ✅ Reset dirty state after successful action
+        setIsFormDirty(false);
         onClose();
     };
 
@@ -227,19 +232,26 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
 
     const handleFinish = async () => {
         // Calculate total biaya and durasi for billing stop
-        const totalBiaya = hitungTotal(port.price, port.time, port.type === 't' ? 'timed' : 'bebas');
+        let detikDipakai = 0;
+        if (port.start_time) {
+            // Use server-time based calculation
+            const currentTime = getCurrentTimestamp();
+            detikDipakai = Math.max(0, currentTime - port.start_time);
+        } else {
+            // Fallback to current time value
+            detikDipakai = port.type === 'b' ? port.time : port.billing - port.time;
+        }
+
+        const totalBiaya = hitungTotal(port.price, detikDipakai, port.type === 't' ? 'timed' : 'bebas');
         let durasi = null;
 
         if (port.type === 'b') {
-            // bebas mode
-            // Convert seconds to HH:MM:SS format
-            const totalSeconds = port.time;
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
+            // bebas mode - use actual elapsed time
+            const hours = Math.floor(detikDipakai / 3600);
+            const minutes = Math.floor((detikDipakai % 3600) / 60);
+            const seconds = detikDipakai % 60;
             durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
-        // For timed mode, duration is already set in database, so we don't need to calculate it here
 
         // Control relay OFF (status false = aliran mati)
         if (controlRelay && port.pin && port.device) {
@@ -287,7 +299,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             alert('Gagal menghentikan billing di database. Namun relay sudah dimatikan.');
         }
 
-        // ✅ Set port ke idle dan reset semua data
+        // Set port ke idle dan reset semua data
         const finishedPort: Port = {
             ...port,
             nama_pelanggan: '',
@@ -303,15 +315,16 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             type: '',
             promoScheme: 'tanpa-promo',
             mode: 'timed',
+            start_time: undefined,
         };
 
         onUpdatePort(finishedPort);
-        resetFormData(); // ✅ Reset form juga
+        resetFormData();
         onClose();
     };
 
     const handleReset = () => {
-        // ✅ Reset port dan form data
+        // Reset port dan form data
         const resetPort: Port = {
             ...port,
             nama_pelanggan: '',
@@ -327,10 +340,11 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             type: '',
             promoScheme: 'tanpa-promo',
             mode: 'timed',
+            start_time: undefined,
         };
 
         onUpdatePort(resetPort);
-        resetFormData(); // ✅ Reset form juga
+        resetFormData();
     };
 
     return (
@@ -338,7 +352,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             open={isOpen}
             onOpenChange={(open) => {
                 if (!open) {
-                    setIsFormDirty(false); // ✅ Reset dirty state when modal closes
+                    setIsFormDirty(false);
                 }
                 onClose();
             }}
@@ -374,7 +388,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 value={portData.customer}
                                 onChange={(e) => {
                                     setPortData((prev) => ({ ...prev, customer: e.target.value }));
-                                    setIsFormDirty(true); // ✅ Mark form as dirty
+                                    setIsFormDirty(true);
                                 }}
                                 disabled={port.status !== 'idle'}
                                 className={port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
@@ -393,7 +407,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                         const raw = e.target.value.replace(/\D/g, '');
                                         const formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                                         setPortData((prev) => ({ ...prev, hourlyRate: formatted }));
-                                        setIsFormDirty(true); // ✅ Mark form as dirty
+                                        setIsFormDirty(true);
                                     }}
                                     disabled={port.status !== 'idle'}
                                     className={cn(
@@ -412,7 +426,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                             value={portData.mode}
                             onValueChange={(val) => {
                                 setPortData((prev) => ({ ...prev, mode: val as 'timed' | 'bebas' }));
-                                setIsFormDirty(true); // ✅ Mark form as dirty
+                                setIsFormDirty(true);
                             }}
                             disabled={port.status !== 'idle'}
                         >
@@ -426,7 +440,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         </Select>
                     </div>
 
-                    {/* Time Input - ✅ Fixed: Input sekarang benar */}
+                    {/* Time Input */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="hours">Jam</Label>
@@ -440,7 +454,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 onChange={(e) => {
                                     const value = e.target.value.replace(/[^0-9]/g, '');
                                     setPortData((prev) => ({ ...prev, hours: value }));
-                                    setIsFormDirty(true); // ✅ Mark form as dirty
+                                    setIsFormDirty(true);
                                 }}
                                 disabled={portData.mode === 'bebas' || port.status !== 'idle'}
                                 className={portData.mode === 'bebas' || port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
@@ -457,11 +471,10 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 value={portData.minutes}
                                 onChange={(e) => {
                                     const value = e.target.value.replace(/[^0-9]/g, '');
-                                    // ✅ Validasi menit tidak lebih dari 59
                                     const numValue = parseInt(value || '0', 10);
                                     if (numValue <= 59) {
                                         setPortData((prev) => ({ ...prev, minutes: value }));
-                                        setIsFormDirty(true); // ✅ Mark form as dirty
+                                        setIsFormDirty(true);
                                     }
                                 }}
                                 disabled={portData.mode === 'bebas' || port.status !== 'idle'}
@@ -477,7 +490,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                             value={portData.promoScheme}
                             onValueChange={(val) => {
                                 setPortData((prev) => ({ ...prev, promoScheme: val }));
-                                setIsFormDirty(true); // ✅ Mark form as dirty
+                                setIsFormDirty(true);
                             }}
                             disabled={port.status !== 'idle'}
                         >
