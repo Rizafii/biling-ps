@@ -93,7 +93,7 @@ class BillingController extends Controller
                 'device_id' => 'required|string',
                 'pin' => 'required|integer',
                 'total_biaya' => 'required|numeric|min:0',
-                'durasi_menit' => 'nullable|integer|min:0', // Only required for bebas mode
+                'durasi' => 'nullable|string', // Now accepts time format HH:MM:SS
             ]);
 
             // Find the ESP relay by device_id and pin
@@ -120,19 +120,25 @@ class BillingController extends Controller
                 ], 404);
             }
 
-            // Calculate duration in minutes if not provided (for bebas mode)
-            $durasiMenit = $validated['durasi_menit'];
-            if ($billing->mode === 'bebas' && !$durasiMenit) {
+            // Calculate duration if not provided (for bebas mode)
+            $durasi = $validated['durasi'];
+            if ($billing->mode === 'bebas' && !$durasi) {
                 $waktuMulai = Carbon::parse($billing->waktu_mulai);
                 $waktuSekarang = Carbon::now();
-                $durasiMenit = $waktuSekarang->diffInMinutes($waktuMulai);
+                $totalSeconds = $waktuSekarang->diffInSeconds($waktuMulai);
+
+                // Convert seconds to HH:MM:SS format
+                $hours = floor($totalSeconds / 3600);
+                $minutes = floor(($totalSeconds % 3600) / 60);
+                $seconds = $totalSeconds % 60;
+                $durasi = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
             }
 
             // Update billing record
             $billing->update([
                 'status' => 'selesai',
                 'total_biaya' => $validated['total_biaya'],
-                'durasi_menit' => $durasiMenit,
+                'durasi' => $durasi,
                 'waktu_selesai' => Carbon::now(),
             ]);
 
@@ -144,7 +150,7 @@ class BillingController extends Controller
                     'nama_pelanggan' => $billing->nama_pelanggan,
                     'mode' => $billing->mode,
                     'total_biaya' => $billing->total_biaya,
-                    'durasi_menit' => $billing->durasi_menit,
+                    'durasi' => $billing->durasi,
                     'waktu_mulai' => $billing->waktu_mulai->toISOString(),
                     'waktu_selesai' => $billing->waktu_selesai->toISOString(),
                 ],

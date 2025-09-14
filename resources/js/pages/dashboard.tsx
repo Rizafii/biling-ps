@@ -296,12 +296,24 @@ export default function Dashboard() {
 
             // Calculate total biaya and durasi for billing stop
             const totalBiaya = hitungTotal(port.price, port.billing, port.time, port.type);
-            let durasiMenit = null;
+            let durasi = null;
 
             if (port.type === 'b') {
                 // bebas mode
-                // Durasi dalam menit untuk mode bebas = waktu yang sudah berjalan
-                durasiMenit = Math.floor(port.time / 60); // Convert seconds to minutes
+                // Convert seconds to HH:MM:SS format
+                const totalSeconds = port.time;
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else if (port.type === 't') {
+                // timed mode
+                // Calculate used time (billing - remaining time)
+                const usedSeconds = port.billing - port.time;
+                const hours = Math.floor(usedSeconds / 3600);
+                const minutes = Math.floor((usedSeconds % 3600) / 60);
+                const seconds = usedSeconds % 60;
+                durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }
 
             // Call API to stop billing
@@ -318,7 +330,7 @@ export default function Dashboard() {
                         device_id: port.device,
                         pin: port.pin,
                         total_biaya: totalBiaya,
-                        durasi_menit: durasiMenit,
+                        durasi: durasi,
                     }),
                 });
 

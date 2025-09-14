@@ -19,7 +19,7 @@ return new class extends Migration {
             $table->enum('status', ['aktif', 'selesai'])->default('aktif');
             $table->decimal('tarif_perjam', 10, 2);
             $table->decimal('total_biaya', 10, 2)->nullable();
-            $table->integer('durasi_menit')->nullable();
+            $table->time('durasi')->nullable()->after('total_biaya');
             $table->timestamp('waktu_mulai');
             $table->timestamp('waktu_selesai')->nullable();
 

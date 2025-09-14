@@ -15,7 +15,7 @@ class Billing extends Model
         'status',
         'tarif_perjam',
         'total_biaya',
-        'durasi_menit',
+        'durasi',
         'waktu_mulai',
         'waktu_selesai',
     ];
