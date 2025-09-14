@@ -149,6 +149,31 @@ export default function Dashboard() {
                     // Auto turn off relays for expired billings
                     for (const billing of result.stopped_billings) {
                         await controlRelay(billing.device_id, billing.pin, false);
+
+                        // Update local state immediately to clear customer data
+                        const portId = `${billing.device_id}_${billing.pin}`;
+                        setPortsData((prev) =>
+                            prev.map((p) => {
+                                if (p.id === portId) {
+                                    return {
+                                        ...p,
+                                        status: 'idle',
+                                        type: '',
+                                        nama_pelanggan: '',
+                                        time: 0,
+                                        billing: 0,
+                                        total: 0,
+                                        subtotal: 0,
+                                        price: '',
+                                        hours: '0',
+                                        minutes: '0',
+                                        promoScheme: 'tanpa-promo',
+                                        mode: 'timed',
+                                    };
+                                }
+                                return p;
+                            }),
+                        );
                     }
                     console.log(`Auto-stopped ${result.expired_count} expired billings`);
                 }
