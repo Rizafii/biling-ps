@@ -28,12 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('/device', EspDeviceController::class);
 
     // Histori (nanti kalau sudah ada controller)
-    Route::resource('histori', HistoriController::class);
-
-    // Halaman histori index manual
-    Route::get('/histori', function () {
-        return Inertia::render('histori/index');
-    })->name('histori');
+    Route::resource('/histori', HistoriController::class);
 });
 
 // Home page redirect ke dashboard
