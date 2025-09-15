@@ -1,8 +1,10 @@
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { dashboard, histori } from '@/routes';
+import { dashboard } from '@/routes';
 import device from '@/routes/device';
+import promo from '@/routes/promo';
+import histori from '@/routes/histori';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
 import { ClipboardCheck, LayoutGrid, Satellite } from 'lucide-react';
@@ -21,7 +23,7 @@ const mainNavItems: NavItem[] = [
     // },
     {
         title: 'Histori',
-        href: histori(),
+        href: histori.index.url(),
         icon: ClipboardCheck,
     },
     {

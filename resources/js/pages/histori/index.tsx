@@ -11,117 +11,61 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
 import { Eye, Calendar, LayoutGrid, List } from "lucide-react"
 import AppLayout from "@/layouts/app-layout"
 import { BreadcrumbItem } from "@/types"
-import { histori } from "@/routes"
+import { dashboard } from "@/routes"
+
+interface EspRelay {
+    id: number
+    nama_relay: string
+    created_at: string
+    updated_at: string
+}
+
+interface Promo {
+    id: number
+    name: string
+    diskon: number
+    created_at: string
+    updated_at: string
+}
 
 interface Billing {
     id: number
     esp_relay_id: number
     promo_id: number | null
     nama_pelanggan: string
-    mode: "timer" | "bebas"
+    mode: "bebas" | "timer"
     status: "aktif" | "selesai"
     tarif_perjam: number
     total_biaya: number
-    durasi_menit: number | null
-    waktu_mulai: string // atau Date kalau langsung diparse
+    durasi: number | null   // ✅ sesuai schema
+    waktu_mulai: string
     waktu_selesai: string | null
     created_at: string
     updated_at: string
+    promo?: Promo | null
+    esp_relay?: EspRelay | null
 }
 
 
 interface GroupedData {
+    esp_relay?: EspRelay
+    promo?: Promo | null
     date: string
     data: Billing[]
 }
 
-export default function BillingManagement() {
-    const billings: Billing[] = [
-        {
-            id: 1,
-            esp_relay_id: 1,
-            promo_id: null,
-            nama_pelanggan: "Andi",
-            mode: "timer",
-            status: "selesai",
-            tarif_perjam: 10000,
-            total_biaya: 32490,
-            durasi_menit: 195,
-            waktu_mulai: "2025-09-10 19:11:49",
-            waktu_selesai: "2025-09-10 22:25:55",
-            created_at: "2025-09-10 22:25:55",
-            updated_at: "2025-09-10 22:25:55",
-        },
-        {
-            id: 2,
-            esp_relay_id: 2,
-            promo_id: 1,
-            nama_pelanggan: "Budi",
-            mode: "bebas",
-            status: "aktif",
-            tarif_perjam: 12000,
-            total_biaya: 15000,
-            durasi_menit: null,
-            waktu_mulai: "2025-09-13 10:00:00",
-            waktu_selesai: null,
-            created_at: "2025-09-13 10:00:00",
-            updated_at: "2025-09-13 10:00:00",
-        },
-        {
-            id: 3,
-            esp_relay_id: 3,
-            promo_id: 2,
-            nama_pelanggan: "Citra",
-            mode: "timer",
-            status: "selesai",
-            tarif_perjam: 15000,
-            total_biaya: 45000,
-            durasi_menit: 180,
-            waktu_mulai: "2025-09-12 14:00:00",
-            waktu_selesai: "2025-09-12 17:00:00",
-            created_at: "2025-09-12 17:00:00",
-            updated_at: "2025-09-12 17:00:00",
-        },
-        {
-            id: 4,
-            esp_relay_id: 4,
-            promo_id: null,
-            nama_pelanggan: "Dedi",
-            mode: "timer",
-            status: "selesai",
-            tarif_perjam: 15000,
-            total_biaya: 30000,
-            durasi_menit: 120,
-            waktu_mulai: "2025-09-12 10:00:00",
-            waktu_selesai: "2025-09-12 12:00:00",
-            created_at: "2025-09-12 12:00:00",
-            updated_at: "2025-09-12 12:00:00",
-        },
-        {
-            id: 5,
-            esp_relay_id: 5,
-            promo_id: null,
-            nama_pelanggan: "Eka",
-            mode: "bebas",
-            status: "selesai",
-            tarif_perjam: 8000,
-            total_biaya: 24000,
-            durasi_menit: 180,
-            waktu_mulai: "2025-09-11 15:30:00",
-            waktu_selesai: "2025-09-11 18:30:00",
-            created_at: "2025-09-11 18:30:00",
-            updated_at: "2025-09-11 18:30:00",
-        },
-    ]
-    // Tambahkan daftar promo (mock data dulu)
-    const promos: Record<number, string> = {
-        1: "Promo Diskon 20%",
-        2: "Happy Hour",
-    }
+interface IndexProps {
+    data: Billing[]
+    promo: Promo[]
+    esp_relay: EspRelay[]
+}
+
+export default function Index({ data, promo, esp_relay }: IndexProps) {
 
     type sortBy = "nama" | "biaya" | "mulai"
     type filter = "all" | "aktif" | "selesai" | "timer" | "bebas"
     const [search, setSearch] = useState<string>("")
+    const billings = data ?? []
     const [sortBy, setSortBy] = useState<sortBy>("nama")
     const [filter, setFilter] = useState<filter>("all")
     const [startDate, setStartDate] = useState<string>("")
@@ -131,8 +75,9 @@ export default function BillingManagement() {
     const [viewMode, setViewMode] = useState<"daily" | "table">("daily")
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: "Histori", href: histori().url },
+        { title: "Histori", href: dashboard().url },
     ]
+    console.log(data);
 
     // Filtering + Sorting + Date Range
     const filteredBillings = useMemo<Billing[]>(() => {
@@ -205,9 +150,37 @@ export default function BillingManagement() {
     }, [filteredBillings])
 
     // Calculate daily totals
-    const getDailyTotal = (data: Billing[]): number => {
-        return data.reduce((total: number, billing: Billing) => total + billing.total_biaya, 0)
+    // parsing number yang toleran terhadap string berformat (Rp, koma, dsb.)
+    const parseNumber = (v: any): number => {
+        if (v == null) return 0
+        if (typeof v === "number") return v
+        const cleaned = String(v).replace(/[^0-9.-]+/g, "") // buang semua kecuali digit, titik, minus
+        const n = Number(cleaned)
+        return Number.isFinite(n) ? n : 0
     }
+
+    // support kedua nama field durasi (durasi_menit atau durasi)
+    const getDurasiMenit = (b: Billing): number => {
+        // @ts-ignore — kompatibilitas sementara jika belum diganti interface
+        return (typeof (b as any).durasi_menit === "number" ? (b as any).durasi_menit : (b as any).durasi) ?? 0
+    }
+
+    // fallback kalkulasi total dari tarif & durasi (jika backend tidak memberikan atau string rusak)
+    const computeTotalFromRate = (b: Billing): number => {
+        const tarif = parseNumber((b as any).tarif_perjam)
+        const durasiMenit = getDurasiMenit(b)
+        return Math.round((durasiMenit / 60) * tarif) // pembulatan; sesuaikan jika mau floor/toFixed
+    }
+
+    const getDailyTotal = (data: Billing[]): number => {
+        return data.reduce((acc: number, b: Billing) => {
+            const tb = parseNumber((b as any).total_biaya)
+            // jika total_biaya tidak valid (NaN/0) coba hitung dari tarif+durasi
+            const val = (Number.isFinite(tb) && tb !== 0) ? tb : computeTotalFromRate(b)
+            return acc + val
+        }, 0)
+    }
+
 
     const clearDateFilter = (): void => {
         setStartDate("")
@@ -297,6 +270,8 @@ export default function BillingManagement() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Pelanggan</TableHead>
+                                    <TableHead>Relay</TableHead>
+                                    <TableHead>Promo</TableHead>
                                     <TableHead>Mode</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Durasi</TableHead>
@@ -310,6 +285,9 @@ export default function BillingManagement() {
                                 {filteredBillings.map((billing) => (
                                     <TableRow key={billing.id}>
                                         <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
+                                        <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
+                                        <TableCell>{billing.promo?.name ?? '-'}</TableCell>
+
                                         <TableCell>
                                             <Badge
                                                 variant="secondary"
@@ -327,7 +305,9 @@ export default function BillingManagement() {
                                                 <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
                                             )}
                                         </TableCell>
-                                        <TableCell>{billing.durasi_menit ? `${billing.durasi_menit} menit` : "-"}</TableCell>
+                                        {billing.durasi
+                                            ? `${Math.floor(billing.durasi / 60)} jam ${billing.durasi % 60} menit`
+                                            : "-"}
                                         <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
                                         <TableCell className="font-semibold">Rp {Number(billing.total_biaya).toLocaleString()}</TableCell>
                                         <TableCell>{new Date(billing.created_at).toLocaleDateString("id-ID")}</TableCell>
@@ -357,7 +337,7 @@ export default function BillingManagement() {
                                     <Card key={date} className="overflow-hidden shadow-lg">
                                         <CardHeader className="bg-gradient-to-r border-b px-6 py-4">
                                             <div className="flex justify-between items-center">
-                                                <CardTitle className="flex items-center gap-2 text-white text-lg"><Calendar /> {date}</CardTitle>
+                                                <CardTitle className="flex items-center gap-2 text-lg"><Calendar /> {date}</CardTitle>
                                                 <div className="flex gap-3 text-sm">
                                                     <Badge variant="outline">
                                                         {data.length} transaksi
@@ -373,6 +353,8 @@ export default function BillingManagement() {
                                                 <TableHeader>
                                                     <TableRow>
                                                         <TableHead>Pelanggan</TableHead>
+                                                        <TableHead>Relay</TableHead>
+                                                        <TableHead>Promo</TableHead>
                                                         <TableHead>Mode</TableHead>
                                                         <TableHead>Status</TableHead>
                                                         <TableHead>Durasi</TableHead>
@@ -386,6 +368,8 @@ export default function BillingManagement() {
                                                     {data.map((billing: Billing) => (
                                                         <TableRow key={billing.id}>
                                                             <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
+                                                            <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
+                                                            <TableCell>{billing.promo?.name ?? '-'}</TableCell>
                                                             <TableCell>
                                                                 <Badge
                                                                     variant="secondary"
@@ -405,7 +389,7 @@ export default function BillingManagement() {
                                                                     <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
                                                                 )}
                                                             </TableCell>
-                                                            <TableCell>{billing.durasi_menit ? `${billing.durasi_menit} menit` : "-"}</TableCell>
+                                                            <TableCell>{billing.durasi ? billing.durasi : "-"}</TableCell>
                                                             <TableCell className="font-semibold">
                                                                 Rp {Number(billing.total_biaya).toLocaleString()}
                                                             </TableCell>
@@ -480,11 +464,11 @@ export default function BillingManagement() {
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-gray-100">
                                     <span className="font-medium ">Promo</span>
-                                    <span>
-                                        {selectedBilling.promo_id
-                                            ? promos[selectedBilling.promo_id] ?? `Promo #${selectedBilling.promo_id}`
-                                            : "-"}
-                                    </span>
+                                    <span>{selectedBilling.promo?.name ?? '-'}</span>
+                                </div>
+                                <div className="flex justify-between py-2 border-b border-gray-100">
+                                    <span className="font-medium ">Relay</span>
+                                    <span>{selectedBilling.esp_relay?.nama_relay ?? '-'}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-gray-100">
                                     <span className="font-medium ">Tarif Per Jam</span>
@@ -492,7 +476,7 @@ export default function BillingManagement() {
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-gray-100">
                                     <span className="font-medium ">Durasi</span>
-                                    <span>{selectedBilling.durasi_menit ?? "-"} menit</span>
+                                    <span>{selectedBilling.durasi ?? "-"} menit</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-gray-100">
                                     <span className="font-medium ">Total Biaya</span>

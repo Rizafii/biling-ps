@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Histori;
+use App\Models\Billing;
+use App\Models\EspRelay;
+use App\Models\Promo;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -13,9 +15,14 @@ class HistoriController extends Controller
      */
     public function index()
     {
-        $historis = Histori::latest()->get();
+        $historis = Billing::with(['promo', 'espRelay'])->latest()->get();
+        $promo = Promo::all();
+        $esp_relay = EspRelay::all();
+
         return Inertia::render('histori/index', [
-            'historis' => $historis,
+            'data' => $historis,
+            'promo' => $promo,
+            'esp_relay' => $esp_relay
         ]);
     }
 
@@ -38,7 +45,7 @@ class HistoriController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Histori $histori)
+    public function show(Billing $histori)
     {
         //
     }
@@ -46,7 +53,7 @@ class HistoriController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Histori $histori)
+    public function edit(Billing $histori)
     {
         //
     }
@@ -54,7 +61,7 @@ class HistoriController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Histori $histori)
+    public function update(Request $request, Billing $histori)
     {
         //
     }
@@ -62,7 +69,7 @@ class HistoriController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Histori $histori)
+    public function destroy(Billing $histori)
     {
         //
     }
