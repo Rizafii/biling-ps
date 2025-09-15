@@ -359,7 +359,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                     </div>
 
                     {/* Promo */}
-                    <div>
+                    {/* <div>
                         <Label htmlFor="promo">Promo</Label>
                         <Select
                             value={portData.promoScheme}
@@ -380,7 +380,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
+                    </div> */}
 
                     {/* Action Buttons */}
                     <div className="flex gap-3">

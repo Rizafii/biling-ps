@@ -1,13 +1,11 @@
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { dashboard, histori } from '@/routes';
 import device from '@/routes/device';
-import promo from '@/routes/promo';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, ClipboardCheck, Folder, LayoutGrid, Satellite, Tags } from 'lucide-react';
+import { ClipboardCheck, LayoutGrid, Satellite } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -16,11 +14,11 @@ const mainNavItems: NavItem[] = [
         href: dashboard(),
         icon: LayoutGrid,
     },
-    {
-        title: 'Promo',
-        href: promo.index.url(),
-        icon: Tags,
-    },
+    // {
+    //     title: 'Promo',
+    //     href: promo.index.url(),
+    //     icon: Tags,
+    // },
     {
         title: 'Histori',
         href: histori(),
@@ -30,19 +28,6 @@ const mainNavItems: NavItem[] = [
         title: 'Perangkat',
         href: device.index.url(),
         icon: Satellite,
-    },
-];
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
     },
 ];
 

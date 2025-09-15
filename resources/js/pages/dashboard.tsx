@@ -244,6 +244,74 @@ export default function Dashboard() {
         }
     }, []);
 
+    // Function to check for offline devices and auto-stop their billing
+    const checkOfflineDevices = useCallback(async () => {
+        try {
+            const response = await fetch('/api/esp/check-offline-and-stop-billing', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.stopped_billings.length > 0) {
+                    // Update local state for stopped billings due to offline devices
+                    for (const billing of result.stopped_billings) {
+                        const portId = `${billing.device_id}_${billing.pin}`;
+                        setPortsData((prev) =>
+                            prev.map((p) => {
+                                if (p.id === portId) {
+                                    return {
+                                        ...p,
+                                        status: 'idle',
+                                        type: '',
+                                        nama_pelanggan: '',
+                                        time: 0,
+                                        billing: 0,
+                                        total: 0,
+                                        subtotal: 0,
+                                        price: '',
+                                        hours: '0',
+                                        minutes: '0',
+                                        promoScheme: 'tanpa-promo',
+                                        mode: 'timed',
+                                        start_time: undefined,
+                                        device_status: 'offline',
+                                    };
+                                }
+                                return p;
+                            }),
+                        );
+                    }
+                    console.log(`Auto-stopped ${result.stopped_billing_count} billings due to ${result.offline_count} offline devices`);
+                }
+
+                // Update device status for offline devices
+                if (result.offline_devices.length > 0) {
+                    setPortsData((prev) =>
+                        prev.map((p) => {
+                            if (result.offline_devices.includes(p.device)) {
+                                return {
+                                    ...p,
+                                    device_status: 'offline',
+                                    status: p.status === 'on' ? 'idle' : p.status, // Reset status if was running
+                                };
+                            }
+                            return p;
+                        }),
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('Error checking offline devices:', error);
+        }
+    }, []);
+
     // Auto-refresh ports setiap 5 detik
     useEffect(() => {
         // Initial load
@@ -254,11 +322,12 @@ export default function Dashboard() {
             if (!modalOpen && !modalConfirmOpen) {
                 fetchPorts(false); // Auto refresh tanpa loading indicator
                 checkExpiredBillings(); // Check for expired timed billings
+                checkOfflineDevices(); // Check for offline devices and auto-stop billing
             }
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [modalOpen, modalConfirmOpen, checkExpiredBillings]);
+    }, [modalOpen, modalConfirmOpen, checkExpiredBillings, checkOfflineDevices]);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
