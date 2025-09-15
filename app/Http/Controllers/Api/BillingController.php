@@ -135,19 +135,19 @@ class BillingController extends Controller
                 ], 404);
             }
 
-            // Calculate duration if not provided (for bebas mode)
-            $durasi = $validated['durasi'];
-            if ($billing->mode === 'bebas' && !$durasi) {
-                $waktuMulai = Carbon::parse($billing->waktu_mulai);
-                $waktuSekarang = Carbon::now();
-                $totalSeconds = $waktuSekarang->diffInSeconds($waktuMulai);
+            // Calculate actual duration for both modes
+            $waktuMulai = Carbon::parse($billing->waktu_mulai);
+            $waktuSekarang = Carbon::now();
+            $totalSeconds = $waktuSekarang->diffInSeconds($waktuMulai);
 
-                // Convert seconds to HH:MM:SS format
-                $hours = floor($totalSeconds / 3600);
-                $minutes = floor(($totalSeconds % 3600) / 60);
-                $seconds = $totalSeconds % 60;
-                $durasi = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-            }
+            // Convert actual elapsed time to HH:MM:SS format
+            $hours = floor($totalSeconds / 3600);
+            $minutes = floor(($totalSeconds % 3600) / 60);
+            $seconds = $totalSeconds % 60;
+            $durasiAktual = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+
+            // Use provided duration if available, otherwise use calculated actual duration
+            $durasi = $validated['durasi'] ?? $durasiAktual;
 
             // Update billing record
             $billing->update([

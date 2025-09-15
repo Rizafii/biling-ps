@@ -243,15 +243,12 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
         }
 
         const totalBiaya = hitungTotal(port.price, detikDipakai, port.type === 't' ? 'timed' : 'bebas');
-        let durasi = null;
 
-        if (port.type === 'b') {
-            // bebas mode - use actual elapsed time
-            const hours = Math.floor(detikDipakai / 3600);
-            const minutes = Math.floor((detikDipakai % 3600) / 60);
-            const seconds = detikDipakai % 60;
-            durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
+        // Calculate actual elapsed time for both modes
+        const hours = Math.floor(detikDipakai / 3600);
+        const minutes = Math.floor((detikDipakai % 3600) / 60);
+        const seconds = detikDipakai % 60;
+        const durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
         // Control relay OFF (status false = aliran mati)
         if (controlRelay && port.pin && port.device) {

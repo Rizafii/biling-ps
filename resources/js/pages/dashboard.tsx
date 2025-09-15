@@ -440,16 +440,12 @@ export default function Dashboard() {
             }
 
             const totalBiaya = hitungTotal(port.price, detikDipakai, port.type);
-            let durasi = null;
 
-            if (port.type === 'b') {
-                // bebas mode - use actual elapsed time
-                const hours = Math.floor(detikDipakai / 3600);
-                const minutes = Math.floor((detikDipakai % 3600) / 60);
-                const seconds = detikDipakai % 60;
-                durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }
-            // For timed mode, duration is already set in database
+            // Calculate actual elapsed time for both modes
+            const hours = Math.floor(detikDipakai / 3600);
+            const minutes = Math.floor((detikDipakai % 3600) / 60);
+            const seconds = detikDipakai % 60;
+            const durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
             // Call API to stop billing
             try {
