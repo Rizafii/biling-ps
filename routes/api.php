@@ -33,6 +33,7 @@ Route::prefix('ports')->group(function () {
 Route::prefix('relay')->group(function () {
     Route::post('/control', [EspController::class, 'controlRelay']);
     Route::post('/control-multiple', [EspController::class, 'controlMultipleRelays']);
+    Route::post('/update-name', [EspDeviceController::class, 'updateRelayName']);
 });
 
 // Billing API Routes

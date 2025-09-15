@@ -327,6 +327,41 @@ class EspDeviceController extends Controller
     }
 
     /**
+     * Update relay name
+     */
+    public function updateRelayName(Request $request)
+    {
+        $validated = $request->validate([
+            'device_id' => 'required|string',
+            'pin' => 'required|integer',
+            'nama_relay' => 'required|string|max:255',
+        ]);
+
+        // Find the relay
+        $relay = EspRelay::where('device_id', $validated['device_id'])
+            ->where('pin', $validated['pin'])
+            ->first();
+
+        if (!$relay) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Relay not found',
+            ], 404);
+        }
+
+        // Update relay name
+        $relay->update([
+            'nama_relay' => $validated['nama_relay']
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Relay name updated successfully',
+            'relay' => $relay
+        ]);
+    }
+
+    /**
      * Create default 8 relays for a new device
      */
     private function createDefaultRelays(string $deviceId)

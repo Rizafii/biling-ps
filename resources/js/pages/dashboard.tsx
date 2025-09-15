@@ -1,5 +1,6 @@
 'use client';
 
+import ModalEditPort from '@/components/ModalEditPort';
 import { ModalSetPort } from '@/components/ModalSetPort';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, ChevronDown, ChevronUp, Play, Settings, Square } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Edit, Play, Settings, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard().url }];
@@ -55,6 +56,7 @@ export default function Dashboard() {
     const [portsData, setPortsData] = useState<Port[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
+    const [modalEditOpen, setModalEditOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [sortKey, setSortKey] = useState<'nama_pelanggan' | 'duration' | null>(null);
     const [sortAsc, setSortAsc] = useState(true);
@@ -251,14 +253,14 @@ export default function Dashboard() {
 
         const interval = setInterval(() => {
             // Skip auto-refresh jika modal sedang terbuka
-            if (!modalOpen && !modalConfirmOpen) {
+            if (!modalOpen && !modalConfirmOpen && !modalEditOpen) {
                 fetchPorts(false); // Auto refresh tanpa loading indicator
                 checkExpiredBillings(); // Check for expired timed billings
             }
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [modalOpen, modalConfirmOpen, checkExpiredBillings]);
+    }, [modalOpen, modalConfirmOpen, modalEditOpen, checkExpiredBillings]);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -651,6 +653,18 @@ export default function Dashboard() {
                                                     <Settings className="mr-1 h-3 w-3" /> Set/Lihat
                                                 </Button>
                                                 <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-xs"
+                                                    onClick={() => {
+                                                        setSelectedPort(port);
+                                                        setModalEditOpen(true);
+                                                    }}
+                                                    disabled={port.device_status === 'offline'}
+                                                >
+                                                    <Edit className="h-3 w-3" />
+                                                </Button>
+                                                <Button
                                                     size="sm"
                                                     disabled={port.status === 'off' || port.device_status === 'offline'}
                                                     className={cn(
@@ -683,6 +697,9 @@ export default function Dashboard() {
                     onUpdatePort={handleUpdatePort}
                     controlRelay={controlRelay}
                 />
+            )}
+            {selectedPort && (
+                <ModalEditPort isOpen={modalEditOpen} onClose={() => setModalEditOpen(false)} port={selectedPort} onUpdatePort={handleUpdatePort} />
             )}
             {selectedPort && (
                 <Dialog open={modalConfirmOpen} onOpenChange={setModalConfirmOpen}>
