@@ -360,7 +360,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
 
                     {/* Promo */}
                     <div>
-                        <Label htmlFor="promo">Skema Promo</Label>
+                        <Label htmlFor="promo">Promo</Label>
                         <Select
                             value={portData.promoScheme}
                             onValueChange={(val) => {
@@ -394,15 +394,6 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         ) : (
                             <div className="flex-1 text-center font-semibold text-green-600">Port Sedang Berjalan</div>
                         )}
-                    </div>
-
-                    {/* Footer Info */}
-                    <div className="flex justify-between border-t pt-2 text-sm text-gray-600">
-                        <span>
-                            Billable: {Math.floor(port.billing / 60)}:{(port.billing % 60).toString().padStart(2, '0')}
-                        </span>
-                        <span>Subtotal: Rp {port.subtotal.toLocaleString('id-ID')}</span>
-                        <span>Diskon: Rp {port.diskon.toLocaleString('id-ID')}</span>
                     </div>
                 </div>
             </DialogContent>
