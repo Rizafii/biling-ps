@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, ChevronDown, ChevronUp, Pause, Play, Settings } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Play, Settings, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard().url }];
@@ -27,7 +27,7 @@ interface Port {
     nama_pelanggan: string;
     duration: string; // "HH:MM:SS"
     price: string;
-    status: 'idle' | 'on' | 'pause' | 'off';
+    status: 'idle' | 'on' | 'off';
     time: number; // dalam detik
     total: number;
     billing: number; // detik
@@ -391,38 +391,6 @@ export default function Dashboard() {
         return total;
     }
 
-    // Toggle status port hanya untuk "on" dan "pause"
-    const togglePortStatus = async (port: Port) => {
-        if (port.status === 'idle') {
-            // Jika idle, hanya buka modal
-            setSelectedPort(port);
-            setModalOpen(true);
-            return;
-        }
-
-        if (port.status === 'on') {
-            // Jika ON, pause dahulu (hanya update UI, tidak control relay)
-            setPortsData((prev) =>
-                prev.map((p) => {
-                    if (p.id === port.id) {
-                        return { ...p, status: 'pause' };
-                    }
-                    return p;
-                }),
-            );
-        } else if (port.status === 'pause') {
-            // Jika PAUSE, resume ke ON (tidak control relay karena relay tetap on)
-            setPortsData((prev) =>
-                prev.map((p) => {
-                    if (p.id === port.id) {
-                        return { ...p, status: 'on' };
-                    }
-                    return p;
-                }),
-            );
-        }
-    };
-
     // Function untuk benar-benar mematikan relay (stop billing)
     const stopBilling = async (port: Port) => {
         if (port.pin && port.device) {
@@ -520,11 +488,6 @@ export default function Dashboard() {
             setModalConfirmOpen(true); // buka modal konfirmasi
             return;
         }
-
-        if (port.status === 'pause') {
-            togglePortStatus(port); // langsung resume
-            return;
-        }
     };
 
     const getStatusBadge = (status: string) => {
@@ -535,8 +498,6 @@ export default function Dashboard() {
                 return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Off</Badge>;
             case 'idle':
                 return <Badge variant="secondary">Idle</Badge>;
-            case 'pause':
-                return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Pause</Badge>;
             default:
                 return <Badge variant="outline">Unknown</Badge>;
         }
@@ -694,16 +655,14 @@ export default function Dashboard() {
                                                     disabled={port.status === 'off' || port.device_status === 'offline'}
                                                     className={cn(
                                                         port.status === 'on'
-                                                            ? 'bg-yellow-400 hover:bg-yellow-500'
+                                                            ? 'bg-red-500 text-white hover:bg-red-600'
                                                             : port.status === 'idle'
                                                               ? 'bg-green-400 hover:bg-green-500'
-                                                              : port.status === 'pause'
-                                                                ? 'bg-green-400 hover:bg-green-500'
-                                                                : 'cursor-not-allowed bg-gray-300',
+                                                              : 'cursor-not-allowed bg-gray-300',
                                                     )}
                                                     onClick={() => handleActionClick(port)}
                                                 >
-                                                    {port.status === 'on' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                                    {port.status === 'on' ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -733,18 +692,14 @@ export default function Dashboard() {
                                 <div className="rounded-full bg-yellow-50 p-2">
                                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
                                 </div>
-                                <DialogTitle className="text-lg font-semibold">Konfirmasi Aksi {selectedPort.no_port}</DialogTitle>
+                                <DialogTitle className="text-lg font-semibold">Konfirmasi Stop {selectedPort.no_port}</DialogTitle>
                             </div>
                             <DialogDescription className="mt-3 text-sm text-muted-foreground">
-                                Pilih aksi yang ingin dilakukan pada {selectedPort.no_port}:
+                                Apakah Anda yakin ingin menghentikan billing dan mematikan relay untuk {selectedPort.no_port}?
                             </DialogDescription>
                         </DialogHeader>
 
                         <div className="mt-4 space-y-3">
-                            <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
-                                <p className="text-sm font-medium text-blue-800">Pause</p>
-                                <p className="mt-1 text-sm text-blue-700">Hanya menghentikan waktu billing, relay tetap ON (listrik tetap nyala).</p>
-                            </div>
                             <div className="rounded-md border border-red-100 bg-red-50 p-3">
                                 <p className="text-sm font-medium text-red-800">Stop & Matikan Relay</p>
                                 <p className="mt-1 text-sm text-red-700">Menghentikan billing dan mematikan relay (listrik mati).</p>
@@ -755,17 +710,6 @@ export default function Dashboard() {
                             <div className="flex w-full justify-end gap-2">
                                 <Button variant="ghost" onClick={() => setModalConfirmOpen(false)}>
                                     Batal
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        if (selectedPort) {
-                                            togglePortStatus(selectedPort);
-                                        }
-                                        setModalConfirmOpen(false);
-                                    }}
-                                >
-                                    Pause
                                 </Button>
                                 <Button
                                     variant="destructive"

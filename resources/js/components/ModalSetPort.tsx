@@ -1,12 +1,12 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, FileText, Pause, Play, RotateCcw } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface Port {
@@ -20,7 +20,7 @@ interface Port {
     nama_pelanggan: string;
     duration: string; // "HH:MM:SS"
     price: string;
-    status: 'idle' | 'on' | 'pause' | 'off';
+    status: 'idle' | 'on' | 'off';
     time: number;
     total: number;
     billing: number;
@@ -47,7 +47,6 @@ interface ModalSetPortProps {
 }
 
 export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, controlRelay }: ModalSetPortProps) {
-    const [confirmOpen, setConfirmOpen] = useState(false);
     const [isFormDirty, setIsFormDirty] = useState(false);
     const [portData, setPortData] = useState({
         customer: '',
@@ -223,127 +222,6 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
         onClose();
     };
 
-    const handlePause = () => {
-        onUpdatePort({
-            ...port,
-            status: port.status === 'pause' ? 'on' : 'pause',
-        });
-    };
-
-    const handleFinish = async () => {
-        // Calculate total biaya and durasi for billing stop
-        let detikDipakai = 0;
-        if (port.start_time) {
-            // Use server-time based calculation
-            const currentTime = getCurrentTimestamp();
-            detikDipakai = Math.max(0, currentTime - port.start_time);
-        } else {
-            // Fallback to current time value
-            detikDipakai = port.type === 'b' ? port.time : port.billing - port.time;
-        }
-
-        const totalBiaya = hitungTotal(port.price, detikDipakai, port.type === 't' ? 'timed' : 'bebas');
-
-        // Calculate actual elapsed time for both modes
-        const hours = Math.floor(detikDipakai / 3600);
-        const minutes = Math.floor((detikDipakai % 3600) / 60);
-        const seconds = detikDipakai % 60;
-        const durasi = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
-        // Control relay OFF (status false = aliran mati)
-        if (controlRelay && port.pin && port.device) {
-            try {
-                await controlRelay(port.device, port.pin, false);
-            } catch (error) {
-                console.error('Error controlling relay:', error);
-                alert('Gagal mengontrol relay. Coba lagi.');
-                return;
-            }
-        }
-
-        // Call API to stop billing
-        try {
-            const response = await fetch('/api/billing/stop', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    device_id: port.device,
-                    pin: port.pin,
-                    total_biaya: totalBiaya,
-                    durasi: durasi,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-
-            if (result.success) {
-                console.log('Billing stopped successfully:', result);
-            } else {
-                console.error('Failed to stop billing:', result.message);
-                alert('Gagal menghentikan billing di database.');
-            }
-        } catch (error) {
-            console.error('Error stopping billing:', error);
-            alert('Gagal menghentikan billing di database. Namun relay sudah dimatikan.');
-        }
-
-        // Set port ke idle dan reset semua data
-        const finishedPort: Port = {
-            ...port,
-            nama_pelanggan: '',
-            price: '',
-            status: 'idle',
-            time: 0,
-            billing: 0,
-            total: 0,
-            subtotal: 0,
-            diskon: 0,
-            hours: '0',
-            minutes: '0',
-            type: '',
-            promoScheme: 'tanpa-promo',
-            mode: 'timed',
-            start_time: undefined,
-        };
-
-        onUpdatePort(finishedPort);
-        resetFormData();
-        onClose();
-    };
-
-    const handleReset = () => {
-        // Reset port dan form data
-        const resetPort: Port = {
-            ...port,
-            nama_pelanggan: '',
-            price: '',
-            status: 'idle',
-            time: 0,
-            billing: 0,
-            total: 0,
-            subtotal: 0,
-            diskon: 0,
-            hours: '0',
-            minutes: '0',
-            type: '',
-            promoScheme: 'tanpa-promo',
-            mode: 'timed',
-            start_time: undefined,
-        };
-
-        onUpdatePort(resetPort);
-        resetFormData();
-    };
-
     return (
         <Dialog
             open={isOpen}
@@ -514,27 +392,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 Mulai
                             </Button>
                         ) : (
-                            <>
-                                {port.status === 'pause' ? (
-                                    <Button onClick={handlePause} className="flex-1 bg-green-500 hover:bg-green-600">
-                                        <Play className="mr-2 h-4 w-4" />
-                                        Resume
-                                    </Button>
-                                ) : (
-                                    <Button onClick={() => setConfirmOpen(true)} className="flex-1 bg-yellow-500 hover:bg-yellow-600">
-                                        <Pause className="mr-2 h-4 w-4" />
-                                        Pause
-                                    </Button>
-                                )}
-                                <Button onClick={handleFinish} className="flex-1 bg-green-500 hover:bg-green-600">
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Selesai & Nota
-                                </Button>
-                                <Button variant="outline" onClick={handleReset} className="bg-transparent px-6">
-                                    <RotateCcw className="mr-2 h-4 w-4" />
-                                    Reset
-                                </Button>
-                            </>
+                            <div className="flex-1 text-center font-semibold text-green-600">Port Sedang Berjalan</div>
                         )}
                     </div>
 
@@ -548,47 +406,6 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                     </div>
                 </div>
             </DialogContent>
-
-            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-full bg-yellow-50 p-2">
-                                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                            </div>
-                            <DialogTitle className="text-lg font-semibold">Konfirmasi Pause</DialogTitle>
-                        </div>
-                        <DialogDescription className="mt-3 text-sm text-muted-foreground">
-                            Apakah Anda yakin ingin mem-pause {port.no_port}?
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="mt-4 rounded-md border border-yellow-100 bg-orange-50 p-3">
-                        <p className="text-sm font-medium text-yellow-800">Peringatan</p>
-                        <p className="mt-1 text-sm text-yellow-700">
-                            Jika <span className="font-semibold">dipause</span>, maka relay akan
-                            <span className="font-semibold text-red-700"> mati</span> yang berakibat listrik
-                            <span className="font-semibold text-red-700"> mati</span>.
-                        </p>
-                    </div>
-
-                    <DialogFooter className="mt-6">
-                        <div className="flex w-full justify-end gap-2">
-                            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
-                                Batal
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    onUpdatePort({ ...port, status: 'pause' });
-                                    setConfirmOpen(false);
-                                }}
-                            >
-                                Lanjutkan
-                            </Button>
-                        </div>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </Dialog>
     );
 }
