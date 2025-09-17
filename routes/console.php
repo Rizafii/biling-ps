@@ -13,3 +13,9 @@ Schedule::command('billing:check-expired')
     ->everySecond()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule untuk mengecek device status setiap 30 detik
+Schedule::command('device:check-status')
+    ->everyThirtySeconds()
+    ->withoutOverlapping()
+    ->runInBackground();
