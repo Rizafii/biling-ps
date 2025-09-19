@@ -21,6 +21,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
+    Route::get('/controll', function () {
+        return Inertia::render('controll/index');
+    })->name('controll');
+
     // Promo (resource route)
     Route::resource('/promo', PromoController::class);
 

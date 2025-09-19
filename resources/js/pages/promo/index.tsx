@@ -42,6 +42,7 @@ export default function Index({ promos }: Props) {
         min_duration: "",
         is_active: true,
     })
+
     const [search, setSearch] = useState("")
     const [sortBy, setSortBy] = useState<"name" | "type" | "active">("name")
     const [openAdd, setOpenAdd] = useState(false)
@@ -53,13 +54,14 @@ export default function Index({ promos }: Props) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        post("/promo"), {
+        post("/promo", {
             onSuccess: () => {
                 reset()
                 setOpenAdd(false)
-            }
-        }
+            },
+        })
     }
+
 
     const filteredPromos = useMemo(() => {
         let data = promos.filter((p) =>
@@ -144,7 +146,7 @@ export default function Index({ promos }: Props) {
                                     </TableCell>
                                     <TableCell>{promo.min_duration ? `${promo.min_duration} mnt` : "-"}</TableCell>
                                     <TableCell>
-                                        {promo.is_active ? (
+                                        {promo.is_active == true ? (
                                             <Badge className="bg-green-100 text-green-800">Aktif</Badge>
                                         ) : (
                                             <Badge className="bg-red-100 text-red-800">Nonaktif</Badge>
@@ -198,70 +200,91 @@ export default function Index({ promos }: Props) {
                         <DialogTitle>Tambah Promo</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit}>
-                        <div className="space-y-3">
-                            <div>
-                                <Label>Nama Promo</Label>
-                                <Input
-                                    value={data.name}
-                                    onChange={(e) => setData("name", e.target.value)}
-                                    placeholder="Contoh: Happy Hour -10%"
-                                />
-                                {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                        <div className="space-y-6">
+
+                            <div className="space-y-3">
+                                <div>
+                                    <Label>Nama Promo</Label>
+                                    <Input
+                                        value={data.name}
+                                        onChange={(e) => setData("name", e.target.value)}
+                                        placeholder="Contoh: Happy Hour -10%"
+                                    />
+                                    {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Kode Promo</Label>
+                                    <Input
+                                        value={data.code}
+                                        onChange={(e) => setData("code", e.target.value)}
+                                        placeholder="Contoh: HAPPY10"
+                                    />
+                                    {errors.code && <p className="text-red-500 text-sm">{errors.code}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Tipe</Label>
+                                    <Select
+                                        value={data.type}
+                                        onValueChange={(val) => setData("type", val)}
+                                    >
+                                        <SelectTrigger><SelectValue placeholder="Pilih tipe" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="flat">Flat</SelectItem>
+                                            <SelectItem value="percent">Percent</SelectItem>
+                                            <SelectItem value="time">Time</SelectItem>
+                                            <SelectItem value="bundle">Bundle</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Nilai</Label>
+                                    <Input
+                                        type="number"
+                                        value={data.value}
+                                        onChange={(e) => setData("value", e.target.value)}
+                                        placeholder="Isi sesuai tipe"
+                                    />
+                                    {errors.value && <p className="text-red-500 text-sm">{errors.value}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Min Durasi (menit)</Label>
+                                    <Input
+                                        type="number"
+                                        value={data.min_duration}
+                                        onChange={(e) => setData("min_duration", e.target.value)}
+                                        placeholder="Opsional"
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Status</Label>
+                                    <Select
+                                        value={String(data.is_active)}
+                                        onValueChange={(val) => setData("is_active", val === "true")}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="true">Aktif</SelectItem>
+                                            <SelectItem value="false">Nonaktif</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+
+                                    {errors.is_active && <p className="text-red-500 text-sm">{errors.is_active}</p>}
+                                </div>
                             </div>
 
-                            <div>
-                                <Label>Kode Promo</Label>
-                                <Input
-                                    value={data.code}
-                                    onChange={(e) => setData("code", e.target.value)}
-                                    placeholder="Contoh: HAPPY10"
-                                />
-                                {errors.code && <p className="text-red-500 text-sm">{errors.code}</p>}
-                            </div>
-
-                            <div>
-                                <Label>Tipe</Label>
-                                <Select
-                                    value={data.type}
-                                    onValueChange={(val) => setData("type", val)}
-                                >
-                                    <SelectTrigger><SelectValue placeholder="Pilih tipe" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="flat">Flat</SelectItem>
-                                        <SelectItem value="percent">Percent</SelectItem>
-                                        <SelectItem value="time">Time</SelectItem>
-                                        <SelectItem value="bundle">Bundle</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}
-                            </div>
-
-                            <div>
-                                <Label>Nilai</Label>
-                                <Input
-                                    type="number"
-                                    value={data.value}
-                                    onChange={(e) => setData("value", e.target.value)}
-                                    placeholder="Isi sesuai tipe"
-                                />
-                                {errors.value && <p className="text-red-500 text-sm">{errors.value}</p>}
-                            </div>
-
-                            <div>
-                                <Label>Min Durasi (menit)</Label>
-                                <Input
-                                    type="number"
-                                    value={data.min_duration}
-                                    onChange={(e) => setData("min_duration", e.target.value)}
-                                    placeholder="Opsional"
-                                />
-                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setOpenAdd(false)}>Batal</Button>
+                                <Button type="submit" disabled={processing}>Simpan</Button>
+                            </DialogFooter>
                         </div>
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpenAdd(false)}>Batal</Button>
-                            <Button type="submit" disabled={processing}>Simpan</Button>
-                        </DialogFooter>
                     </form>
 
                 </DialogContent>
@@ -287,64 +310,83 @@ export default function Index({ promos }: Props) {
                         }}
 
                     >
-                        <div className="space-y-3">
-                            <div>
-                                <Label>Nama Promo</Label>
-                                <Input
-                                    value={data.name}
-                                    onChange={(e) => setData("name", e.target.value)}
-                                />
-                                {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <div>
+                                    <Label>Nama Promo</Label>
+                                    <Input
+                                        value={data.name}
+                                        onChange={(e) => setData("name", e.target.value)}
+                                    />
+                                    {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Kode Promo</Label>
+                                    <Input
+                                        value={data.code}
+                                        onChange={(e) => setData("code", e.target.value)}
+                                    />
+                                    {errors.code && <p className="text-red-500 text-sm">{errors.code}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Tipe</Label>
+                                    <Select
+                                        value={data.type}
+                                        onValueChange={(val) => setData("type", val)}
+                                    >
+                                        <SelectTrigger><SelectValue placeholder="Pilih tipe" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="flat">Flat</SelectItem>
+                                            <SelectItem value="percent">Percent</SelectItem>
+                                            <SelectItem value="time">Time</SelectItem>
+                                            <SelectItem value="bundle">Bundle</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div>
+                                    <Label>Nilai</Label>
+                                    <Input
+                                        type="number"
+                                        value={data.value}
+                                        onChange={(e) => setData("value", e.target.value)}
+                                    />
+                                </div>
+
+                                <div>
+                                    <Label>Min Durasi</Label>
+                                    <Input
+                                        type="number"
+                                        value={data.min_duration}
+                                        onChange={(e) => setData("min_duration", e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Status</Label>
+                                    <Select
+                                        value={String(data.is_active)}
+                                        onValueChange={(val) => setData("is_active", val === "true")}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="true">Aktif</SelectItem>
+                                            <SelectItem value="false">Nonaktif</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    {errors.is_active && <p className="text-red-500 text-sm">{errors.is_active}</p>}
+                                </div>
                             </div>
 
-                            <div>
-                                <Label>Kode Promo</Label>
-                                <Input
-                                    value={data.code}
-                                    onChange={(e) => setData("code", e.target.value)}
-                                />
-                                {errors.code && <p className="text-red-500 text-sm">{errors.code}</p>}
-                            </div>
-
-                            <div>
-                                <Label>Tipe</Label>
-                                <Select
-                                    value={data.type}
-                                    onValueChange={(val) => setData("type", val)}
-                                >
-                                    <SelectTrigger><SelectValue placeholder="Pilih tipe" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="flat">Flat</SelectItem>
-                                        <SelectItem value="percent">Percent</SelectItem>
-                                        <SelectItem value="time">Time</SelectItem>
-                                        <SelectItem value="bundle">Bundle</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label>Nilai</Label>
-                                <Input
-                                    type="number"
-                                    value={data.value}
-                                    onChange={(e) => setData("value", e.target.value)}
-                                />
-                            </div>
-
-                            <div>
-                                <Label>Min Durasi</Label>
-                                <Input
-                                    type="number"
-                                    value={data.min_duration}
-                                    onChange={(e) => setData("min_duration", e.target.value)}
-                                />
-                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setOpenEdit(false)}>Batal</Button>
+                                <Button type="submit" disabled={processing}>Update</Button>
+                            </DialogFooter>
                         </div>
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpenEdit(false)}>Batal</Button>
-                            <Button type="submit" disabled={processing}>Update</Button>
-                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
