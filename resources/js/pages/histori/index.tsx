@@ -12,6 +12,7 @@ import { Eye, Calendar, LayoutGrid, List } from "lucide-react"
 import AppLayout from "@/layouts/app-layout"
 import { BreadcrumbItem } from "@/types"
 import { dashboard } from "@/routes"
+import { Head } from "@inertiajs/react"
 
 interface EspRelay {
     id: number
@@ -189,6 +190,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Histori"></Head>
             <Card className="m-4">
                 <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <CardTitle className="text-2xl font-bold">Manajemen Histori Billing</CardTitle>
@@ -245,7 +247,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                 </CardHeader>
 
                 <CardContent className="pt-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-4 border-b justify-end">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2 justify-end">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-500" />
                             <span className="text-sm font-medium">Filter Tanggal:</span>
@@ -305,9 +307,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                 <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
                                             )}
                                         </TableCell>
-                                        {billing.durasi
-                                            ? `${Math.floor(billing.durasi / 60)} jam ${billing.durasi % 60} menit`
-                                            : "-"}
+                                        <TableCell>{billing.durasi?billing.durasi:"-"}</TableCell>
                                         <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
                                         <TableCell className="font-semibold">Rp {Number(billing.total_biaya).toLocaleString()}</TableCell>
                                         <TableCell>{new Date(billing.created_at).toLocaleDateString("id-ID")}</TableCell>
@@ -334,7 +334,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                         {groupedByDate.length > 0 ? (
                             <div className="space-y-6">
                                 {groupedByDate.map(({ date, data }) => (
-                                    <Card key={date} className="overflow-hidden shadow-lg">
+                                    <Card key={date} className="overflow-hidden shadow-lg p-4">
                                         <CardHeader className="bg-gradient-to-r border-b px-6 py-4">
                                             <div className="flex justify-between items-center">
                                                 <CardTitle className="flex items-center gap-2 text-lg"><Calendar /> {date}</CardTitle>
@@ -476,7 +476,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-gray-100">
                                     <span className="font-medium ">Durasi</span>
-                                    <span>{selectedBilling.durasi ?? "-"} menit</span>
+                                    <span>{selectedBilling.durasi ? selectedBilling.durasi : "-"}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-gray-100">
                                     <span className="font-medium ">Total Biaya</span>
