@@ -1,26 +1,31 @@
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { controll, dashboard } from '@/routes';
 import device from '@/routes/device';
 import promo from '@/routes/promo';
 import histori from '@/routes/histori';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { ClipboardCheck, LayoutGrid, Satellite } from 'lucide-react';
+import { ChartColumn, ClipboardCheck, Joystick, LayoutGrid, Satellite, Tags } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
-        icon: LayoutGrid,
+        icon: ChartColumn,
     },
-    // {
-    //     title: 'Promo',
-    //     href: promo.index.url(),
-    //     icon: Tags,
-    // },
+    {
+        title: 'Controll',
+        href: controll(),
+        icon: Joystick,
+    },
+    {
+        title: 'Promo',
+        href: promo.index.url(),
+        icon: Tags,
+    },
     {
         title: 'Histori',
         href: histori.index.url(),
@@ -35,7 +40,7 @@ const mainNavItems: NavItem[] = [
 
 export function AppSidebar() {
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

@@ -274,8 +274,8 @@ export default function Index({ devices: initialDevices }: Props) {
                                                 >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button size="sm" variant="destructive" title="Hapus device">
-                                                    <Trash2 className="h-4 w-4" />
+                                                <Button size="sm" variant="destructive">
+                                                    <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -302,54 +302,56 @@ export default function Index({ devices: initialDevices }: Props) {
                         <DialogTitle>Tambah Device ESP</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit}>
-                        <div className="space-y-3">
-                            <div>
-                                <Label>Device ID</Label>
-                                <Input
-                                    value={data.device_id}
-                                    onChange={(e) => setData('device_id', e.target.value)}
-                                    placeholder="Contoh: ESP001"
-                                    required
-                                />
-                                {errors.device_id && <p className="text-sm text-red-500">{errors.device_id}</p>}
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <div>
+                                    <Label>Device ID</Label>
+                                    <Input
+                                        value={data.device_id}
+                                        onChange={(e) => setData('device_id', e.target.value)}
+                                        placeholder="Contoh: ESP001"
+                                        required
+                                    />
+                                    {errors.device_id && <p className="text-sm text-red-500">{errors.device_id}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Nama Device</Label>
+                                    <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Contoh: ESP Device Ruang 1" />
+                                    {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Status Koneksi</Label>
+                                    <Select value={data.status} onValueChange={(val) => setData('status', val as 'online' | 'offline')}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="online">Online</SelectItem>
+                                            <SelectItem value="offline">Offline</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}
+                                </div>
                             </div>
 
-                            <div>
-                                <Label>Nama Device</Label>
-                                <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Contoh: ESP Device Ruang 1" />
-                                {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
-                            </div>
-
-                            <div>
-                                <Label>Status Koneksi</Label>
-                                <Select value={data.status} onValueChange={(val) => setData('status', val as 'online' | 'offline')}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Pilih status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="online">Online</SelectItem>
-                                        <SelectItem value="offline">Offline</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {errors.status && <p className="text-sm text-red-500">{errors.status}</p>}
-                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setOpenAdd(false);
+                                        reset();
+                                    }}
+                                >
+                                    Batal
+                                </Button>
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Menyimpan...' : 'Simpan'}
+                                </Button>
+                            </DialogFooter>
                         </div>
-
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    setOpenAdd(false);
-                                    reset();
-                                }}
-                            >
-                                Batal
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Menyimpan...' : 'Simpan'}
-                            </Button>
-                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -370,49 +372,52 @@ export default function Index({ devices: initialDevices }: Props) {
                         <DialogTitle>Edit Device ESP</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleEdit}>
-                        <div className="space-y-3">
-                            <div>
-                                <Label>Device ID</Label>
-                                <Input value={data.device_id} onChange={(e) => setData('device_id', e.target.value)} required />
-                                {errors.device_id && <p className="text-sm text-red-500">{errors.device_id}</p>}
+                        <div className="space-y-6">
+
+                            <div className="space-y-3">
+                                <div>
+                                    <Label>Device ID</Label>
+                                    <Input value={data.device_id} onChange={(e) => setData('device_id', e.target.value)} required />
+                                    {errors.device_id && <p className="text-sm text-red-500">{errors.device_id}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Nama Device</Label>
+                                    <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
+                                    {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+                                </div>
+
+                                <div>
+                                    <Label>Status Koneksi</Label>
+                                    <Select value={data.status} onValueChange={(val) => setData('status', val as 'online' | 'offline')}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="online">Online</SelectItem>
+                                            <SelectItem value="offline">Offline</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
 
-                            <div>
-                                <Label>Nama Device</Label>
-                                <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
-                                {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
-                            </div>
-
-                            <div>
-                                <Label>Status Koneksi</Label>
-                                <Select value={data.status} onValueChange={(val) => setData('status', val as 'online' | 'offline')}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Pilih status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="online">Online</SelectItem>
-                                        <SelectItem value="offline">Offline</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setOpenEdit(false);
+                                        reset();
+                                        setSelectedDevice(null);
+                                    }}
+                                >
+                                    Batal
+                                </Button>
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Updating...' : 'Update'}
+                                </Button>
+                            </DialogFooter>
                         </div>
-
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                    setOpenEdit(false);
-                                    reset();
-                                    setSelectedDevice(null);
-                                }}
-                            >
-                                Batal
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Updating...' : 'Update'}
-                            </Button>
-                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
