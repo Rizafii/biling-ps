@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name'); // Nama promo (contoh: Happy Hour -10%)
             $table->string('code')->unique()->nullable(); // Kode promo (contoh: HAPPY10), boleh null
-            $table->enum('type', ['flat', 'percent', 'time', 'bundle']);
+            $table->enum('type', ['flat', 'percent', 'time',/*'bundle'*/]);
             $table->decimal('value', 10, 2)->nullable();
             $table->integer('min_duration')->nullable();
             $table->boolean('is_active')->default(true); // untuk mengaktifkan/nonaktifkan promo

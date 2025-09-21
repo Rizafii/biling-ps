@@ -39,14 +39,16 @@ class PromoController extends Controller
 
     public function update(Request $request, Promo $promo)
     {
+        // dd($request);
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'code'         => 'nullable|string|max:50',
-            'type'         => 'required|in:flat,percent,time,bundle',
-            'value'        => 'nullable|integer',
+            'type'         => 'required|in:flat,percent,time',
+            'value'        => 'nullable|numeric',
             'min_duration' => 'nullable|integer',
             'is_active'    => 'boolean',
         ]);
+
 
         $promo->update($validated);
 
