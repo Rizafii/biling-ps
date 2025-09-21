@@ -95,6 +95,19 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     </div>
                                 )}
 
+                                <div className="grid gap-2">
+                                    <Label htmlFor="role">Role</Label>
+
+                                    <Input
+                                        id="role"
+                                        className="mt-1 block w-full"
+                                        defaultValue={auth.user.role?.name}
+                                        name="role"
+                                        disabled
+                                        placeholder="Role"
+                                    />
+                                </div>
+
                                 <div className="flex items-center gap-4">
                                     <Button disabled={processing}>Save</Button>
 

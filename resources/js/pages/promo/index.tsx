@@ -320,7 +320,7 @@ export default function Index({ promos }: Props) {
                     ) : (
                         <TableRow>
                             <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
-                                {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                                {search ? 'Tidak ada promo yang ditemukan' : 'Belum ada data promo'}
                             </TableCell>
                         </TableRow>
                     )}
