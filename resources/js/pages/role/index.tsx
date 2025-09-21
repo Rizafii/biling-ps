@@ -191,7 +191,7 @@ export default function RoleIndex({ roles }: Props) {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
-                                    {search ? 'Tidak ada role yang ditemukan' : 'Belum ada role terdaftar'}
+                                    {search ? 'Tidak ada role yang ditemukan' : 'Belum ada data role'}
                                 </TableCell>
                             </TableRow>
                         )}

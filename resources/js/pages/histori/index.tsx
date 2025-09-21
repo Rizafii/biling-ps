@@ -385,70 +385,70 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                 </TableRow>
                             </TableHeader>
                             {groupedByDate.length > 0 ? (
-                            <TableBody>
-                                {filteredBillings.map((billing) => (
-                                    <TableRow key={billing.id}>
-                                        <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
-                                        <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
-                                        <TableCell>{billing.promo?.name ?? '-'}</TableCell>
+                                <TableBody>
+                                    {filteredBillings.map((billing) => (
+                                        <TableRow key={billing.id}>
+                                            <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
+                                            <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
+                                            <TableCell>{billing.promo?.name ?? '-'}</TableCell>
 
-                                        <TableCell>
-                                            <Badge
-                                                variant="secondary"
-                                                className={billing.mode === 'timer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}
-                                            >
-                                                {billing.mode}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.status === 'selesai' ? (
-                                                <Badge className="bg-green-100 text-green-800">Selesai</Badge>
-                                            ) : billing.status === 'sudah_bayar' ? (
-                                                <Badge className="bg-blue-100 text-blue-800">Sudah Bayar</Badge>
-                                            ) : (
-                                                <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{billing.durasi ? billing.durasi : '-'}</TableCell>
-                                        <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
-                                        <TableCell className="font-semibold">
-                                            {formatCurrency(getDisplayAmount(billing))}
-                                            {billing.status === 'sudah_bayar' && billing.promo && (
-                                                <div className="text-xs text-green-600">Dengan promo: {billing.promo.name}</div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{new Date(billing.created_at).toLocaleDateString('id-ID')}</TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        setSelectedBilling(billing);
-                                                        setOpenDetail(true);
-                                                    }}
+                                            <TableCell>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={billing.mode === 'timer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}
                                                 >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                                {billing.status === 'selesai' && (
+                                                    {billing.mode}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.status === 'selesai' ? (
+                                                    <Badge className="bg-green-100 text-green-800">Selesai</Badge>
+                                                ) : billing.status === 'sudah_bayar' ? (
+                                                    <Badge className="bg-blue-100 text-blue-800">Sudah Bayar</Badge>
+                                                ) : (
+                                                    <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{billing.durasi ? billing.durasi : '-'}</TableCell>
+                                            <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
+                                            <TableCell className="font-semibold">
+                                                {formatCurrency(getDisplayAmount(billing))}
+                                                {billing.status === 'sudah_bayar' && billing.promo && (
+                                                    <div className="text-xs text-green-600">Dengan promo: {billing.promo.name}</div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{new Date(billing.created_at).toLocaleDateString('id-ID')}</TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-2">
                                                     <Button
                                                         size="sm"
-                                                        variant="default"
-                                                        className="bg-green-600 hover:bg-green-700"
-                                                        onClick={() => handleOpenPembayaran(billing)}
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setSelectedBilling(billing);
+                                                            setOpenDetail(true);
+                                                        }}
                                                     >
-                                                        <CreditCard className="h-4 w-4" />
+                                                        <Eye className="h-4 w-4" />
                                                     </Button>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                                  ) : (
+                                                    {billing.status === 'selesai' && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="default"
+                                                            className="bg-green-600 hover:bg-green-700"
+                                                            onClick={() => handleOpenPembayaran(billing)}
+                                                        >
+                                                            <CreditCard className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            ) : (
                                 <TableRow>
                                     <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
-                                        {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                                        {search ? 'Tidak ada histori biling yang ditemukan' : 'Belum ada data histori biling'}
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -533,9 +533,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                             <TableCell>
                                                                 {billing.waktu_selesai
                                                                     ? new Date(billing.waktu_selesai).toLocaleTimeString('id-ID', {
-                                                                          hour: '2-digit',
-                                                                          minute: '2-digit',
-                                                                      })
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    })
                                                                     : '-'}
                                                             </TableCell>
                                                             <TableCell>
