@@ -333,49 +333,57 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                     <TableHead>Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
-                                {filteredBillings.map((billing) => (
-                                    <TableRow key={billing.id}>
-                                        <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
-                                        <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
-                                        <TableCell>{billing.promo?.name ?? '-'}</TableCell>
+                            {groupedByDate.length > 0 ? (
+                                <TableBody className="">
+                                    {filteredBillings.map((billing) => (
+                                        <TableRow key={billing.id}>
+                                            <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
+                                            <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
+                                            <TableCell>{billing.promo?.name ?? '-'}</TableCell>
 
-                                        <TableCell>
-                                            <Badge
-                                                variant="secondary"
-                                                className={
-                                                    billing.mode === "timer" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                                                }
-                                            >
-                                                {billing.mode}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {billing.status === "selesai" ? (
-                                                <Badge className="bg-green-100 text-green-800">Selesai</Badge>
-                                            ) : (
-                                                <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{billing.durasi ? billing.durasi : "-"}</TableCell>
-                                        <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
-                                        <TableCell className="font-semibold">Rp {Number(billing.total_biaya).toLocaleString()}</TableCell>
-                                        <TableCell>{new Date(billing.created_at).toLocaleDateString("id-ID")}</TableCell>
-                                        <TableCell>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setSelectedBilling(billing)
-                                                    setOpenDetail(true)
-                                                }}
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
+                                            <TableCell>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={
+                                                        billing.mode === "timer" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                                                    }
+                                                >
+                                                    {billing.mode}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {billing.status === "selesai" ? (
+                                                    <Badge className="bg-green-100 text-green-800">Selesai</Badge>
+                                                ) : (
+                                                    <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{billing.durasi ? billing.durasi : "-"}</TableCell>
+                                            <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
+                                            <TableCell className="font-semibold">Rp {Number(billing.total_biaya).toLocaleString()}</TableCell>
+                                            <TableCell>{new Date(billing.created_at).toLocaleDateString("id-ID")}</TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setSelectedBilling(billing)
+                                                        setOpenDetail(true)
+                                                    }}
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
+                                        {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </Table>
                     </CardContent>
                 ) : (
@@ -479,13 +487,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                 ))}
                             </div>
                         ) : (
-                            <Card className="p-8 text-center">
-                                <div className="text-gray-500">
-                                    <div className="text-6xl mb-4">📊</div>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada data ditemukan</h3>
-                                    <p>Tidak ada data billing yang sesuai dengan kriteria pencarian Anda</p>
-                                </div>
-                            </Card>
+                            <div className="py-6 text-center text-muted-foreground border-y-2">
+                                {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                            </div>
                         )}
                     </div>
                 )}

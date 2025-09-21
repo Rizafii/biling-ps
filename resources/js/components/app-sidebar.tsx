@@ -7,14 +7,26 @@ import promo from '@/routes/promo';
 import histori from '@/routes/histori';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { ChartColumn, ClipboardCheck, Joystick, LayoutGrid, Satellite, Tags } from 'lucide-react';
+import { ChartColumn, ClipboardCheck, Joystick, LayoutGrid, Satellite, Shield, Tags, Users } from 'lucide-react';
 import AppLogo from './app-logo';
+import user from '@/routes/user';
+import role from '@/routes/role';
 
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: ChartColumn,
+    },
+    {
+        title: 'User',
+        href: user.index.url(),
+        icon: Users,
+    },
+    {
+        title: 'Role',
+        href: role.index.url(),
+        icon: Shield,
     },
     {
         title: 'Controll',
