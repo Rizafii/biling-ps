@@ -16,9 +16,10 @@ return new class extends Migration {
             $table->foreignId('promo_id')->nullable()->constrained('promos')->onDelete('set null');
             $table->string('nama_pelanggan');
             $table->enum('mode', ['bebas', 'timer']);
-            $table->enum('status', ['aktif', 'selesai'])->default('aktif');
+            $table->enum('status', ['aktif', 'selesai', 'sudah_bayar'])->default('aktif');
             $table->decimal('tarif_perjam', 10, 2);
             $table->decimal('total_biaya', 10, 2)->nullable();
+            $table->decimal('total_setelah_promo', 10, 2)->nullable();
             $table->time('durasi')->nullable();
             $table->timestamp('waktu_mulai');
             $table->timestamp('waktu_selesai')->nullable();
