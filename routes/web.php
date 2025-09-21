@@ -37,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Histori (nanti kalau sudah ada controller)
     Route::resource('/histori', HistoriController::class);
+    Route::post('/histori/{histori}/pay', [HistoriController::class, 'pay'])->name('histori.pay');
 });
 
 // Home page redirect ke dashboard

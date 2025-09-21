@@ -15,6 +15,7 @@ class Billing extends Model
         'status',
         'tarif_perjam',
         'total_biaya',
+        'total_setelah_promo',
         'durasi',
         'waktu_mulai',
         'waktu_selesai',
@@ -23,6 +24,7 @@ class Billing extends Model
     protected $casts = [
         'tarif_perjam' => 'decimal:2',
         'total_biaya' => 'decimal:2',
+        'total_setelah_promo' => 'decimal:2',
         'waktu_mulai' => 'datetime',
         'waktu_selesai' => 'datetime',
     ];
