@@ -274,9 +274,9 @@ export default function Index({ devices: initialDevices }: Props) {
                                                 >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button size="sm" variant="destructive">
+                                                {/* <Button size="sm" variant="destructive">
                                                     <Trash2 className="w-4 h-4" />
-                                                </Button>
+                                                </Button> */}
                                             </div>
                                         </TableCell>
                                     </TableRow>
