@@ -384,6 +384,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                     <TableHead>Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
+                            {groupedByDate.length > 0 ? (
                             <TableBody>
                                 {filteredBillings.map((billing) => (
                                     <TableRow key={billing.id}>
@@ -444,6 +445,13 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                     </TableRow>
                                 ))}
                             </TableBody>
+                                  ) : (
+                                <TableRow>
+                                    <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
+                                        {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </Table>
                     </CardContent>
                 ) : (
@@ -564,13 +572,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                 ))}
                             </div>
                         ) : (
-                            <Card className="p-8 text-center">
-                                <div className="text-gray-500">
-                                    <div className="mb-4 text-6xl">📊</div>
-                                    <h3 className="mb-2 text-lg font-medium text-gray-900">Tidak ada data ditemukan</h3>
-                                    <p>Tidak ada data billing yang sesuai dengan kriteria pencarian Anda</p>
-                                </div>
-                            </Card>
+                            <div className="py-6 text-center text-muted-foreground border-y-2">
+                                {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                            </div>
                         )}
                     </div>
                 )}

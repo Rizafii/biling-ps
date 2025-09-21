@@ -239,83 +239,94 @@ export default function Index({ promos }: Props) {
                 </CardHeader>
 
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nama</TableHead>
-                                <TableHead>Kode</TableHead>
-                                <TableHead>Tipe</TableHead>
-                                <TableHead>Nilai</TableHead>
-                                <TableHead>Min Durasi</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Aksi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredPromos.map((promo) => (
-                                <TableRow key={promo.id}>
-                                    <TableCell className="font-medium">{promo.name}</TableCell>
-                                    <TableCell>{promo.code ?? "-"}</TableCell>
-                                    <TableCell className="capitalize">{promo.type}</TableCell>
-                                    <TableCell>
-                                        {promo.type === "percent" && `${promo.value}%`}
-                                        {promo.type === "flat" && `Rp ${promo.value?.toLocaleString()}`}
-                                        {promo.type === "time" && `${promo.value} menit`}
-                                    </TableCell>
-                                    <TableCell>{promo.min_duration ? `${promo.min_duration} mnt` : "-"}</TableCell>
-                                    <TableCell>
-                                        {promo.is_active ? (
-                                            <Badge className="bg-green-100 text-green-800">Aktif</Badge>
-                                        ) : (
-                                            <Badge className="bg-red-100 text-red-800">Nonaktif</Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setSelectedPromo(promo)
-                                                    setOpenDetail(true)
-                                                }}
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setSelectedPromo(promo)
-                                                    setData("name", promo.name)
-                                                    setData("code", promo.code ?? "")
-                                                    setData("type", promo.type)
-                                                    setData("value", promo.value ?? null)
-                                                    setData("min_duration", promo.min_duration ?? null)
-                                                    setData("is_active", promo.is_active)
-                                                    setOpenEdit(true)
-                                                }}
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => {
-                                                    if (confirm("Yakin ingin menghapus promo ini?")) {
-                                                        destroy(`/promo/${promo.id}`)
-                                                    }
-                                                }}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nama</TableHead>
+                                    <TableHead>Kode</TableHead>
+                                    <TableHead>Tipe</TableHead>
+                                    <TableHead>Nilai</TableHead>
+                                    <TableHead>Min Durasi</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Aksi</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
+                            </TableHeader>
+                    {filteredPromos.length > 0 ? (
+                            <TableBody>
+                                {filteredPromos.map((promo) => (
+                                    <TableRow key={promo.id}>
+                                        <TableCell className="font-medium">{promo.name}</TableCell>
+                                        <TableCell>{promo.code ?? "-"}</TableCell>
+                                        <TableCell className="capitalize">{promo.type}</TableCell>
+                                        <TableCell>
+                                            {promo.type === "percent" && `${promo.value}%`}
+                                            {promo.type === "flat" && `Rp ${promo.value?.toLocaleString()}`}
+                                            {promo.type === "time" && `${promo.value} menit`}
+                                        </TableCell>
+                                        <TableCell>
+                                            {promo.min_duration ? `${promo.min_duration} mnt` : "-"}
+                                        </TableCell>
+                                        <TableCell>
+                                            {promo.is_active ? (
+                                                <Badge className="bg-green-100 text-green-800">Aktif</Badge>
+                                            ) : (
+                                                <Badge className="bg-red-100 text-red-800">Nonaktif</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setSelectedPromo(promo)
+                                                        setOpenDetail(true)
+                                                    }}
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setSelectedPromo(promo)
+                                                        setData("name", promo.name)
+                                                        setData("code", promo.code ?? "")
+                                                        setData("type", promo.type)
+                                                        setData("value", promo.value ?? null)
+                                                        setData("min_duration", promo.min_duration ?? null)
+                                                        setData("is_active", promo.is_active)
+                                                        setOpenEdit(true)
+                                                    }}
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => {
+                                                        if (confirm("Yakin ingin menghapus promo ini?")) {
+                                                            destroy(`/promo/${promo.id}`)
+                                                        }
+                                                    }}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
+                                {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                            </TableCell>
+                        </TableRow>
+                    )}
                     </Table>
                 </CardContent>
+
             </Card>
 
             {/* Modal Tambah */}

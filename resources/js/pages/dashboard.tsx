@@ -239,8 +239,8 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                 <CardContent>
                                     <div className="overflow-x-auto">
                                         <div className={cn(revenueView == "7days" ? "min-w-[500px]" : "min-w-[1000px]")}>
-                                            {currentRevenueData.length > 0 ? (
-                                                <ResponsiveContainer width="100%" height={300}>
+                                            <ResponsiveContainer width="100%" height={300}>
+                                                {currentRevenueData.length > 0 ? (
                                                     <LineChart data={currentRevenueData}>
                                                         <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
                                                         <XAxis dataKey="tanggal" className="text-xs" tick={{ fontSize: 12 }} />
@@ -258,10 +258,10 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                                             activeDot={{ r: 6, stroke: "hsl(var(--primary))", strokeWidth: 2 }}
                                                         />
                                                     </LineChart>
-                                                </ResponsiveContainer>
-                                            ) : (
-                                                <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
-                                            )}
+                                                ) : (
+                                                    <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                                )}
+                                            </ResponsiveContainer>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -309,7 +309,6 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                             <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
                                         )}
                                     </ResponsiveContainer>
-
                                 </CardContent>
                             </Card>
                             <Card>
@@ -335,18 +334,11 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    {currentPromoData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={300}>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        {currentPromoData.length > 0 ? (
                                             <BarChart data={currentPromoData}>
                                                 <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
-                                                <XAxis
-                                                    dataKey="nama"
-                                                    className="text-xs"
-                                                    tick={{ fontSize: 10 }}
-                                                    angle={-45}
-                                                    textAnchor="end"
-                                                    height={80}
-                                                />
+                                                <XAxis dataKey="nama" className="text-xs" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
                                                 <YAxis className="text-xs" tick={{ fontSize: 12 }} />
                                                 <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} promo`, "Penggunaan"]} />} />
                                                 <Bar dataKey="total" radius={[4, 4, 0, 0]}>
@@ -355,10 +347,10 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                                     ))}
                                                 </Bar>
                                             </BarChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
-                                    )}
+                                        ) : (
+                                            <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                        )}
+                                    </ResponsiveContainer>
                                 </CardContent>
                             </Card>
 
@@ -388,8 +380,8 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    {currentModeData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={300}>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        {currentModeData.length > 0 ? (
                                             <PieChart>
                                                 <Pie
                                                     data={currentModeData}
@@ -410,10 +402,10 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                                 </Pie>
                                                 <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} x`, "Jumlah Billing"]} />} />
                                             </PieChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
-                                    )}
+                                        ) : (
+                                            <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                        )}
+                                    </ResponsiveContainer>
                                 </CardContent>
                             </Card>
 
