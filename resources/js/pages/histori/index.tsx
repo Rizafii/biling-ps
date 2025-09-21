@@ -74,11 +74,49 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
     const [openDetail, setOpenDetail] = useState<boolean>(false)
     const [selectedBilling, setSelectedBilling] = useState<Billing | null>(null)
     const [viewMode, setViewMode] = useState<"daily" | "table">("daily")
+    const [quickRange, setQuickRange] = useState<"all" | "today" | "week" | "month">("all")
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: "Histori", href: dashboard().url },
     ]
-    console.log(data);
+
+    const toDateInputValue = (d: Date) => {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, "0")
+        const day = String(d.getDate()).padStart(2, "0")
+        return `${year}-${month}-${day}`
+    }
+
+    const applyQuickRange = (range: "today" | "week" | "month") => {
+        // gunakan format YYYY-MM-DD lokal
+
+        const now = new Date()
+        let start: Date
+        let end: Date
+
+        if (range === "today") {
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            end.setHours(23, 59, 59, 999)
+        } else if (range === "week") {
+            const day = now.getDay() === 0 ? 7 : now.getDay()
+            start = new Date(now)
+            start.setDate(now.getDate() - (day - 1))
+            start.setHours(0, 0, 0, 0)
+            end = new Date(start)
+            end.setDate(start.getDate() + 6)
+            end.setHours(23, 59, 59, 999)
+        } else {
+            start = new Date(now.getFullYear(), now.getMonth(), 1)
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0) // akhir bulan
+            end.setHours(23, 59, 59, 999)
+        }
+
+        setStartDate(toDateInputValue(start))
+        setEndDate(toDateInputValue(end))
+
+        setQuickRange(range)
+    }
 
     // Filtering + Sorting + Date Range
     const filteredBillings = useMemo<Billing[]>(() => {
@@ -182,7 +220,6 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
         }, 0)
     }
 
-
     const clearDateFilter = (): void => {
         setStartDate("")
         setEndDate("")
@@ -246,7 +283,20 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                     </div>
                 </CardHeader>
 
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 flex space-x-1 justify-end">
+                    <Select value={quickRange} onValueChange={(val) => applyQuickRange(val as "today" | "week" | "month")}>
+                        <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Pilih Rentang Waktu" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua</SelectItem>
+                            <SelectItem value="today">Hari Ini</SelectItem>
+                            <SelectItem value="week">Minggu Ini</SelectItem>
+                            <SelectItem value="month">Bulan Ini</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2 justify-end">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-500" />
@@ -307,7 +357,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                 <Badge className="bg-yellow-100 text-yellow-800">Aktif</Badge>
                                             )}
                                         </TableCell>
-                                        <TableCell>{billing.durasi?billing.durasi:"-"}</TableCell>
+                                        <TableCell>{billing.durasi ? billing.durasi : "-"}</TableCell>
                                         <TableCell>Rp {Number(billing.tarif_perjam).toLocaleString()}</TableCell>
                                         <TableCell className="font-semibold">Rp {Number(billing.total_biaya).toLocaleString()}</TableCell>
                                         <TableCell>{new Date(billing.created_at).toLocaleDateString("id-ID")}</TableCell>
