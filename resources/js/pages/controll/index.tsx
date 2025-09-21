@@ -15,7 +15,7 @@ import { Head } from '@inertiajs/react';
 import { AlertTriangle, ChevronDown, ChevronUp, Edit, Play, Settings, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard().url }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Controll', href: dashboard().url }];
 
 interface Port {
     id: string;

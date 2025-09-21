@@ -155,39 +155,39 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                         </div>
                     </CardHeader>
 
-                    <main className="container mx-6 py-6 space-y-6">
+                    <main className=" mx-6 py-6 space-y-6">
                         {/* Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Pendapatan */}
                             <Card className="bg-gradient-to-br from-emerald-500/90 to-emerald-600 text-white dark:from-emerald-600 dark:to-emerald-700 dark:text-white shadow-md">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium opacity-90">
-                                        Pendapatan Hari Ini
-                                    </CardTitle>
+                                    <CardTitle className="text-sm font-medium opacity-90">Pendapatan Hari Ini</CardTitle>
                                     <DollarSign className="h-4 w-4 opacity-90" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">Rp {statistik.pendapatanHariIni}</div>
+                                    <div className="text-2xl font-bold">
+                                        {statistik.pendapatanHariIni !== undefined ? `Rp ${statistik.pendapatanHariIni}` : "-"}
+                                    </div>
                                     <p className="text-xs opacity-90 mt-1">
                                         <TrendingUp className="h-3 w-3 inline mr-1" />
-                                        kemarin : Rp {statistik.pendapatanKemarin}
+                                        kemarin : {statistik.pendapatanKemarin !== undefined ? `Rp ${statistik.pendapatanKemarin}` : "-"}
                                     </p>
                                 </CardContent>
                             </Card>
 
                             {/* Sesi */}
-                            <Card className="bg-gradient-to-br  from-blue-500/90 to-blue-600 text-white dark:from-blue-600 dark:to-blue-700 dark:text-white shadow-md">
+                            <Card className="bg-gradient-to-br from-blue-500/90 to-blue-600 text-white dark:from-blue-600 dark:to-blue-700 dark:text-white shadow-md">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium opacity-90">
-                                        Sesi Hari Ini
-                                    </CardTitle>
+                                    <CardTitle className="text-sm font-medium opacity-90">Sesi Hari Ini</CardTitle>
                                     <Users className="h-4 w-4 opacity-90" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">{statistik.sesiHariIni} Sesi</div>
+                                    <div className="text-2xl font-bold">
+                                        {statistik.sesiHariIni !== undefined ? `${statistik.sesiHariIni} Sesi` : "-"}
+                                    </div>
                                     <p className="text-xs opacity-90 mt-1">
                                         <TrendingUp className="h-3 w-3 inline mr-1" />
-                                        kemarin : {statistik.sesiKemarin} Sesi
+                                        kemarin : {statistik.sesiKemarin !== undefined ? `${statistik.sesiKemarin} Sesi` : "-"}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -195,16 +195,16 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                             {/* Total Jam */}
                             <Card className="bg-gradient-to-br from-gray-500/90 to-gray-600 text-white dark:from-gray-600 dark:to-gray-700 dark:text-white shadow-md">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium opacity-90">
-                                        Total Jam Main
-                                    </CardTitle>
+                                    <CardTitle className="text-sm font-medium opacity-90">Total Jam Main</CardTitle>
                                     <Clock className="h-4 w-4 opacity-90" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">{statistik.totalJamMainHariIni} Jam</div>
+                                    <div className="text-2xl font-bold">
+                                        {statistik.totalJamMainHariIni !== undefined ? `${statistik.totalJamMainHariIni} Jam` : "-"}
+                                    </div>
                                     <p className="text-xs opacity-90 mt-1">
                                         <TrendingUp className="h-3 w-3 inline mr-1" />
-                                        kemarin : {statistik.totalJamMainKemarin} Jam
+                                        kemarin : {statistik.totalJamMainKemarin !== undefined ? `${statistik.totalJamMainKemarin} Jam` : "-"}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -239,25 +239,29 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                 <CardContent>
                                     <div className="overflow-x-auto">
                                         <div className={cn(revenueView == "7days" ? "min-w-[500px]" : "min-w-[1000px]")}>
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <LineChart data={currentRevenueData}>
-                                                    <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
-                                                    <XAxis dataKey="tanggal" className="text-xs" tick={{ fontSize: 12 }} />
-                                                    <YAxis className="text-xs" tick={{ fontSize: 12 }} tickFormatter={formatRevenueInRb} />
-                                                    <Tooltip
-                                                        content={<CustomTooltip formatter={(value: number) => [formatCurrency(value), "Pendapatan"]} />}
-                                                    />
+                                            {currentRevenueData.length > 0 ? (
+                                                <ResponsiveContainer width="100%" height={300}>
+                                                    <LineChart data={currentRevenueData}>
+                                                        <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
+                                                        <XAxis dataKey="tanggal" className="text-xs" tick={{ fontSize: 12 }} />
+                                                        <YAxis className="text-xs" tick={{ fontSize: 12 }} tickFormatter={formatRevenueInRb} />
+                                                        <Tooltip
+                                                            content={<CustomTooltip formatter={(value: number) => [formatCurrency(value), "Pendapatan"]} />}
+                                                        />
 
-                                                    <Line
-                                                        type="monotone"
-                                                        dataKey="pendapatan"
-                                                        stroke="#3b82f6"
-                                                        strokeWidth={3}
-                                                        dot={{ fill: "#ffffff", strokeWidth: 2, r: 4 }}
-                                                        activeDot={{ r: 6, stroke: "hsl(var(--primary))", strokeWidth: 2 }}
-                                                    />
-                                                </LineChart>
-                                            </ResponsiveContainer>
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey="pendapatan"
+                                                            stroke="#3b82f6"
+                                                            strokeWidth={3}
+                                                            dot={{ fill: "#ffffff", strokeWidth: 2, r: 4 }}
+                                                            activeDot={{ r: 6, stroke: "hsl(var(--primary))", strokeWidth: 2 }}
+                                                        />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            ) : (
+                                                <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                            )}
                                         </div>
                                     </div>
                                 </CardContent>
@@ -287,19 +291,25 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                     </div>
                                 </CardHeader>
                                 <CardContent>
+                                    {/* Port Usage Chart */}
                                     <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={currentPortData} layout="vertical">
-                                            <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
-                                            <XAxis type="number" dataKey="total" tick={{ fontSize: 12 }} />
-                                            <YAxis type="category" dataKey="port" tick={{ fontSize: 12 }} />
-                                            <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} penggunaan`, "Penggunaan"]} />} />
-                                            <Bar dataKey="total" radius={[0, 4, 4, 0]}>
-                                                {portUsageWithColors.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
+                                        {currentPortData.length > 0 ? (
+                                            <BarChart data={currentPortData} layout="vertical">
+                                                <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
+                                                <XAxis type="number" dataKey="total" tick={{ fontSize: 12 }} />
+                                                <YAxis type="category" dataKey="port" tick={{ fontSize: 12 }} />
+                                                <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} penggunaan`, "Penggunaan"]} />} />
+                                                <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                                                    {portUsageWithColors.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        ) : (
+                                            <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                        )}
                                     </ResponsiveContainer>
+
                                 </CardContent>
                             </Card>
                             <Card>
@@ -325,26 +335,30 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={currentPromoData}>
-                                            <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
-                                            <XAxis
-                                                dataKey="nama"
-                                                className="text-xs"
-                                                tick={{ fontSize: 10 }}
-                                                angle={-45}
-                                                textAnchor="end"
-                                                height={80}
-                                            />
-                                            <YAxis className="text-xs" tick={{ fontSize: 12 }} />
-                                            <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} promo`, "Penggunaan"]} />} />
-                                            <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                                                {promoUsageWithColors.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                    {currentPromoData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height={300}>
+                                            <BarChart data={currentPromoData}>
+                                                <CartesianGrid strokeDasharray="2 5" className="opacity-30" />
+                                                <XAxis
+                                                    dataKey="nama"
+                                                    className="text-xs"
+                                                    tick={{ fontSize: 10 }}
+                                                    angle={-45}
+                                                    textAnchor="end"
+                                                    height={80}
+                                                />
+                                                <YAxis className="text-xs" tick={{ fontSize: 12 }} />
+                                                <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} promo`, "Penggunaan"]} />} />
+                                                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                                                    {promoUsageWithColors.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                    )}
                                 </CardContent>
                             </Card>
 
@@ -374,28 +388,32 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
-                                            <Pie
-                                                data={currentModeData}
-                                                cx="50%"
-                                                cy="50%"
-                                                outerRadius={100}
-                                                dataKey="nilai"
-                                                nameKey="nama"
-                                                label={({ name, value }) => `${name}: ${value}`}
-                                                labelLine={false}
-                                            >
-                                                {currentModeData.map((entry, index) => (
-                                                    <Cell
-                                                        key={`cell-${index}`}
-                                                        fill={index === 0 ? "#4ade80" : "#60a5fa"} // Hijau untuk Bebas, biru untuk Timer
-                                                    />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} x`, "Jumlah Billing"]} />} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                                    {currentModeData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height={300}>
+                                            <PieChart>
+                                                <Pie
+                                                    data={currentModeData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    outerRadius={100}
+                                                    dataKey="nilai"
+                                                    nameKey="nama"
+                                                    label={({ name, value }) => `${name}: ${value}`}
+                                                    labelLine={false}
+                                                >
+                                                    {currentModeData.map((entry, index) => (
+                                                        <Cell
+                                                            key={`cell-${index}`}
+                                                            fill={index === 0 ? "#4ade80" : "#60a5fa"} // Hijau untuk Bebas, biru untuk Timer
+                                                        />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip formatter={(value: number) => [`${value} x`, "Jumlah Billing"]} />} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="flex justify-center items-center h-full text-gray-400">Tidak ada data yang tersedia</div>
+                                    )}
                                 </CardContent>
                             </Card>
 
