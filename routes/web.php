@@ -8,6 +8,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\EspDeviceController;
 use App\Http\Controllers\HistoriController;
+use App\Http\Controllers\PaketController;
 
 // use App\Http\Controllers\HistoriController; // aktifkan kalau sudah siap
 
@@ -29,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('/user', UserController::class);
 
     Route::resource('/role', RoleController::class);
+    Route::resource('/paket', PaketController::class);
     // Promo (resource route)
     Route::resource('/promo', PromoController::class);
 

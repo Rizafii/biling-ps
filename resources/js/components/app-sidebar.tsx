@@ -7,10 +7,11 @@ import promo from '@/routes/promo';
 import histori from '@/routes/histori';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { ChartColumn, ClipboardCheck, Joystick, LayoutGrid, Satellite, Shield, Tags, Users } from 'lucide-react';
+import { ChartColumn, ClipboardCheck, Gift, Joystick, LayoutGrid, Satellite, Shield, Tags, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 import user from '@/routes/user';
 import role from '@/routes/role';
+import paket from '@/routes/paket';
 
 const mainNavItems: NavItem[] = [
     {
@@ -19,24 +20,9 @@ const mainNavItems: NavItem[] = [
         icon: ChartColumn,
     },
     {
-        title: 'User',
-        href: user.index.url(),
-        icon: Users,
-    },
-    {
-        title: 'Role',
-        href: role.index.url(),
-        icon: Shield,
-    },
-    {
         title: 'Controll',
         href: controll(),
         icon: Joystick,
-    },
-    {
-        title: 'Promo',
-        href: promo.index.url(),
-        icon: Tags,
     },
     {
         title: 'Histori',
@@ -47,6 +33,26 @@ const mainNavItems: NavItem[] = [
         title: 'Perangkat',
         href: device.index.url(),
         icon: Satellite,
+    },
+    {
+        title: 'Promo',
+        href: promo.index.url(),
+        icon: Tags,
+    },
+    {
+        title: 'Paket',
+        href: paket.index.url(),
+        icon: Gift,
+    },
+    {
+        title: 'User',
+        href: user.index.url(),
+        icon: Users,
+    },
+    {
+        title: 'Role',
+        href: role.index.url(),
+        icon: Shield,
     },
 ];
 

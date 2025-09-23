@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->foreignId('esp_relay_id')->constrained('esp_relay_logs')->onDelete('cascade');
             $table->foreignId('promo_id')->nullable()->constrained('promos')->onDelete('set null');
             $table->string('nama_pelanggan');
-            $table->enum('mode', ['bebas', 'timer']);
+            $table->enum('mode', ['bebas', 'timer','paket']);
             $table->enum('status', ['aktif', 'selesai', 'sudah_bayar'])->default('aktif');
             $table->decimal('tarif_perjam', 10, 2);
             $table->decimal('total_biaya', 10, 2)->nullable();
