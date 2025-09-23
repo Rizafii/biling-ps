@@ -143,7 +143,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 onSuccess: (page) => {
                     // Print receipt after successful payment
                     handlePrintAfterPayment();
-                    
+
                     // Success handled by Inertia
                     onClose();
                     router.reload({ only: ['data'] });
@@ -167,9 +167,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
         if (!billing) return;
 
         try {
-            const selectedPromo = selectedPromoId && selectedPromoId !== 'no-promo' 
-                ? promos.find((p) => p.id.toString() === selectedPromoId) 
-                : null;
+            const selectedPromo = selectedPromoId && selectedPromoId !== 'no-promo' ? promos.find((p) => p.id.toString() === selectedPromoId) : null;
 
             const printData = {
                 namaPelanggan: billing.nama_pelanggan,
@@ -178,11 +176,13 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 durasi: formatDuration(billing.durasi),
                 tarifPerJam: billing.tarif_perjam,
                 totalBiaya: billing.total_biaya,
-                promo: selectedPromo ? {
-                    name: selectedPromo.name,
-                    type: selectedPromo.type,
-                    value: selectedPromo.value,
-                } : null,
+                promo: selectedPromo
+                    ? {
+                          name: selectedPromo.name,
+                          type: selectedPromo.type,
+                          value: selectedPromo.value,
+                      }
+                    : null,
                 diskon: billing.total_biaya - calculatedTotal,
                 totalBayar: calculatedTotal,
                 waktuMulai: billing.waktu_mulai,
@@ -208,9 +208,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
         if (!billing) return;
 
         try {
-            const selectedPromo = selectedPromoId && selectedPromoId !== 'no-promo' 
-                ? promos.find((p) => p.id.toString() === selectedPromoId) 
-                : null;
+            const selectedPromo = selectedPromoId && selectedPromoId !== 'no-promo' ? promos.find((p) => p.id.toString() === selectedPromoId) : null;
 
             const printData = {
                 namaPelanggan: billing.nama_pelanggan,
@@ -219,11 +217,13 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 durasi: formatDuration(billing.durasi),
                 tarifPerJam: billing.tarif_perjam,
                 totalBiaya: billing.total_biaya,
-                promo: selectedPromo ? {
-                    name: selectedPromo.name,
-                    type: selectedPromo.type,
-                    value: selectedPromo.value,
-                } : null,
+                promo: selectedPromo
+                    ? {
+                          name: selectedPromo.name,
+                          type: selectedPromo.type,
+                          value: selectedPromo.value,
+                      }
+                    : null,
                 diskon: billing.total_biaya - calculatedTotal,
                 totalBayar: calculatedTotal,
                 waktuMulai: billing.waktu_mulai,
@@ -239,7 +239,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
 
             toast.info('Mengirim ke printer...');
             const success = await ThermalPrinter.printReceipt(printData);
-            
+
             if (success) {
                 toast.success('Struk berhasil dicetak!');
             } else {
@@ -389,9 +389,9 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                         Batal
                     </Button>
                     {isPrintSupported && (
-                        <Button 
-                            variant="outline" 
-                            onClick={handlePrintReceipt} 
+                        <Button
+                            variant="outline"
+                            onClick={handlePrintReceipt}
                             disabled={isProcessing}
                             className="border-blue-600 text-blue-600 hover:bg-blue-50"
                         >

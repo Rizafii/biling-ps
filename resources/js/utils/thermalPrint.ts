@@ -20,21 +20,21 @@ interface PrintData {
 export class ThermalPrinter {
     private static ESC = '\x1B';
     private static GS = '\x1D';
-    
+
     // ESC/POS Commands
     private static COMMANDS = {
-        INIT: '\x1B\x40',           // Initialize printer
-        CENTER: '\x1B\x61\x01',    // Center align
-        LEFT: '\x1B\x61\x00',      // Left align
-        RIGHT: '\x1B\x61\x02',     // Right align
-        BOLD_ON: '\x1B\x45\x01',   // Bold on
-        BOLD_OFF: '\x1B\x45\x00',  // Bold off
+        INIT: '\x1B\x40', // Initialize printer
+        CENTER: '\x1B\x61\x01', // Center align
+        LEFT: '\x1B\x61\x00', // Left align
+        RIGHT: '\x1B\x61\x02', // Right align
+        BOLD_ON: '\x1B\x45\x01', // Bold on
+        BOLD_OFF: '\x1B\x45\x00', // Bold off
         SIZE_NORMAL: '\x1D\x21\x00', // Normal size
         SIZE_DOUBLE: '\x1D\x21\x11', // Double size
-        SIZE_WIDE: '\x1D\x21\x10',   // Wide
-        SIZE_TALL: '\x1D\x21\x01',   // Tall
-        CUT_PAPER: '\x1D\x56\x41',   // Cut paper
-        LINE_FEED: '\x0A',           // Line feed
+        SIZE_WIDE: '\x1D\x21\x10', // Wide
+        SIZE_TALL: '\x1D\x21\x01', // Tall
+        CUT_PAPER: '\x1D\x56\x41', // Cut paper
+        LINE_FEED: '\x0A', // Line feed
         DOUBLE_LINE_FEED: '\x0A\x0A', // Double line feed
     };
 
@@ -156,12 +156,12 @@ export class ThermalPrinter {
                     console.warn('Web Serial failed, trying alternative methods:', serialError);
                 }
             }
-            
+
             // Fallback to window.print() with formatted content
             return await this.printViaWindowPrint(data);
         } catch (error) {
             console.error('Print error:', error);
-            
+
             // Final fallback - show print dialog with formatted content
             this.showPrintPreview(data);
             return true;
@@ -186,22 +186,22 @@ export class ThermalPrinter {
                         { usbVendorId: 0x04b8 }, // Epson
                         { usbVendorId: 0x0519 }, // Star
                         { usbVendorId: 0x0fe6 }, // ICS Advent
-                    ]
+                    ],
                 });
             }
 
-            await port.open({ 
+            await port.open({
                 baudRate: 9600,
                 dataBits: 8,
                 stopBits: 1,
                 parity: 'none',
-                flowControl: 'none'
+                flowControl: 'none',
             });
 
             const writer = port.writable.getWriter();
             const receiptContent = this.generateReceiptContent(data);
             const encoder = new TextEncoder();
-            
+
             await writer.write(encoder.encode(receiptContent));
             await writer.close();
             await port.close();
@@ -216,7 +216,7 @@ export class ThermalPrinter {
     private static async printViaWindowPrint(data: PrintData): Promise<boolean> {
         // Create a formatted HTML version for standard printing
         const printContent = this.generateHTMLReceipt(data);
-        
+
         const printWindow = window.open('', '_blank', 'width=300,height=600');
         if (!printWindow) {
             throw new Error('Could not open print window');
@@ -224,7 +224,7 @@ export class ThermalPrinter {
 
         printWindow.document.write(printContent);
         printWindow.document.close();
-        
+
         // Wait for content to load then print
         printWindow.onload = () => {
             printWindow.print();
@@ -319,7 +319,9 @@ export class ThermalPrinter {
                     <span>${this.formatCurrency(data.totalBiaya)}</span>
                 </div>
                 
-                ${data.promo && data.diskon > 0 ? `
+                ${
+                    data.promo && data.diskon > 0
+                        ? `
                     <div class="row">
                         <span>Promo:</span>
                         <span>${data.promo.name}</span>
@@ -328,7 +330,9 @@ export class ThermalPrinter {
                         <span>Diskon:</span>
                         <span>-${this.formatCurrency(data.diskon)}</span>
                     </div>
-                ` : ''}
+                `
+                        : ''
+                }
                 
                 <div class="double-line"></div>
                 <div class="row bold large">
@@ -411,12 +415,12 @@ export class ThermalPrinter {
         if ('serial' in navigator && (navigator as any).serial) {
             return true;
         }
-        
+
         // Check standard print support
         if (typeof window !== 'undefined' && typeof window.print === 'function') {
             return true;
         }
-        
+
         return false;
     }
 
