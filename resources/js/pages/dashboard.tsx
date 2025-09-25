@@ -146,7 +146,7 @@ export default function Dashboard({ statistik, pendapatanHarian, pendapatanBulan
                     {/* Header */}
 
                     <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b-2 pb-4">
-                        <CardTitle className="text-2xl font-bold">PlayStation Dashboard</CardTitle>
+                        <CardTitle className="text-2xl font-bold">Dashboard</CardTitle>
                         <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
                                 <Calendar className="h-3 w-3 mr-1" />

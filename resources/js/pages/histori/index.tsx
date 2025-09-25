@@ -573,7 +573,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                             </div>
                         ) : (
                             <div className="py-6 text-center text-muted-foreground border-y-2">
-                                {search ? 'Tidak ada device yang ditemukan' : 'Belum ada device terdaftar'}
+                                {search ? 'Tidak ada histori billing yang ditemukan' : 'Belum ada histori billing terdaftar'}
                             </div>
                         )}
                     </div>
