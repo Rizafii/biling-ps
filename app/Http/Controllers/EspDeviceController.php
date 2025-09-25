@@ -367,7 +367,7 @@ class EspDeviceController extends Controller
     private function createDefaultRelays(string $deviceId)
     {
         // Pin mapping sesuai dengan kode ESP32
-        $relayPins = [12, 13, 14, 27, 26, 25, 33, 32];
+        $relayPins = [32, 33, 25, 26, 13, 12, 14, 27];
 
         foreach ($relayPins as $index => $pin) {
             EspRelay::create([
