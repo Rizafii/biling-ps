@@ -15,8 +15,8 @@ class DashboardController extends Controller
         $tahunIni = now()->year;
 
         // --- Statistik angka ---
-        $pendapatanHariIni = Billing::whereDate('created_at', $hariIni)->sum('total_biaya');
-        $pendapatanKemarin = Billing::whereDate('created_at', $kemarin)->sum('total_biaya');
+        $pendapatanHariIni = Billing::whereDate('created_at', $hariIni)->sum('total_setelah_promo');
+        $pendapatanKemarin = Billing::whereDate('created_at', $kemarin)->sum('total_setelah_promo');
 
         $sesiHariIni = Billing::whereDate('created_at', $hariIni)->count();
         $sesiKemarin = Billing::whereDate('created_at', $kemarin)->count();
@@ -44,14 +44,14 @@ class DashboardController extends Controller
         ];
 
         // --- Grafik 7 hari terakhir ---
-        $pendapatanHarian = Billing::selectRaw('DATE(created_at) as tanggal, SUM(total_biaya) as pendapatan, COUNT(id) as jumlah_sesi')
+        $pendapatanHarian = Billing::selectRaw('DATE(created_at) as tanggal, SUM(total_setelah_promo) as pendapatan, COUNT(id) as jumlah_sesi')
             ->where('created_at', '>=', now()->subDays(7))
             ->groupBy('tanggal')
             ->orderBy('tanggal')
             ->get();
 
         // --- Grafik 30 hari terakhir ---
-        $pendapatanBulanan = Billing::selectRaw('DATE(created_at) as tanggal, SUM(total_biaya) as pendapatan')
+        $pendapatanBulanan = Billing::selectRaw('DATE(created_at) as tanggal, SUM(total_setelah_promo) as pendapatan')
             ->where('created_at', '>=', now()->subDays(30))
             ->groupBy('tanggal')
             ->orderBy('tanggal')
@@ -148,7 +148,7 @@ class DashboardController extends Controller
                     'nilai' => $item->total,
                 ];
             });
-            
+
         $dataMode = [
             'dataModeHariIni' => $dataModeHariIni,
             'dataModeBulanIni' => $dataModeBulanIni
