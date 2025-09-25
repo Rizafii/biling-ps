@@ -35,7 +35,7 @@ class EspRelay extends Model
      */
     public function getPortNumberAttribute(): int
     {
-        $pinMapping = [12 => 1, 13 => 2, 14 => 3, 27 => 4, 26 => 5, 25 => 6, 33 => 7, 32 => 8];
+        $pinMapping = [32 => 1, 33 => 2, 25 => 3, 26 => 4, 13 => 5, 12 => 6, 14 => 7, 27 => 8];
         return $pinMapping[$this->pin] ?? 0;
     }
 

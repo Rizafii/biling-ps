@@ -25,9 +25,9 @@ const char* ap_password = "12345678";
 
 // Timing configuration
 unsigned long lastHeartbeat = 0;
-unsigned long heartbeatInterval = 5000; // 5 seconds
+unsigned long heartbeatInterval = 500; // 500ms
 unsigned long lastRelayCheck = 0;
-unsigned long relayCheckInterval = 1000; // 1 second untuk polling relay status
+unsigned long relayCheckInterval = 100; // 100ms
 
 // Web server for configuration
 WebServer server(80);
@@ -105,7 +105,7 @@ void initializeRelays() {
   Serial.println("Initializing relay pins...");
   for (int i = 0; i < numRelays; i++) {
     pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], LOW); // Start with all relays OFF
+    digitalWrite(relayPins[i], HIGH); // Start with all relays ON
     relayStates[i] = false;
   }
   Serial.println("All relays initialized to OFF state");
@@ -299,7 +299,7 @@ void handleConfigPage() {
     html += "<p><span class='info-label'>Server URL:</span> " + serverURL + "</p>";
     html += "<p><span class='info-label'>Device ID:</span> " + deviceID + "</p>";
     html += "<p><span class='info-label'>Heartbeat Endpoint:</span> " + heartbeatEndpoint + "</p>";
-    html += "<p><span class='info-label'>Relay Endpoint:</span> " + relayEndpoint + "</p>";
+    html += "<p><span class='info-label'>Relay Endpoint:</span> " + relayStatusEndpoint + "</p>";
     html += "<p><span class='info-label'>Last Heartbeat:</span> " + String((millis() - lastHeartbeat) / 1000) + " seconds ago</p>";
     html += "</div>";
     
