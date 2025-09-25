@@ -134,10 +134,6 @@ export class ThermalPrinter {
         content += COMMANDS.CENTER;
         content += '\n';
         content += 'Terima kasih atas kunjungan Anda\n';
-        content += 'Selamat bermain!\n';
-        content += '\n';
-        content += '--------------------------------\n';
-        content += 'Powered by Billing PS System\n';
         content += '\n\n\n';
 
         // Cut paper
