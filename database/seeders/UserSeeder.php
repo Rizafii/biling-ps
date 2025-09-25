@@ -15,16 +15,27 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // pastikan ambil role admin
-        $role = Role::where('name', 'admin')->first();
+        // Ambil role pemilik dan karyawan
+        $rolePemilik = Role::where('name', 'pemilik')->first();
+        $roleKaryawan = Role::where('name', 'karyawan')->first();
 
-        // bikin user default
+        // Bikin user pemilik
         User::firstOrCreate(
-            ['email' => 'test@example.com'],
+            ['email' => 'pemilik@bilingps.pro'],
             [
-                'name' => 'Test User',
-                'password' => Hash::make('password'), // default password
-                'role_id' => $role->id,               // hubungkan ke role admin
+                'name' => 'Pemilik',
+                'password' => Hash::make('password'),
+                'role_id' => $rolePemilik->id,
+            ]
+        );
+
+        // Bikin user karyawan
+        User::firstOrCreate(
+            ['email' => 'karyawan@bilingps.pro'],
+            [
+                'name' => 'Karyawan',
+                'password' => Hash::make('password'),
+                'role_id' => $roleKaryawan->id,
             ]
         );
     }
