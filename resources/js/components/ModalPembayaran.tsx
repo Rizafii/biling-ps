@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { toast } from '@/components/ui/toast';
+import { ThermalPrinter } from '@/utils/thermalPrint';
 import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
@@ -57,6 +59,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
     const [selectedPromoId, setSelectedPromoId] = useState<string>('no-promo');
     const [isProcessing, setIsProcessing] = useState(false);
     const [calculatedTotal, setCalculatedTotal] = useState<number>(0);
+    const [isPrintSupported, setIsPrintSupported] = useState(false);
 
     // Reset state when modal opens/closes
     useEffect(() => {
@@ -65,6 +68,11 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
             setCalculatedTotal(billing.total_biaya);
         }
     }, [isOpen, billing]);
+
+    // Check print support
+    useEffect(() => {
+        ThermalPrinter.isSupported().then(setIsPrintSupported);
+    }, []);
 
     // Calculate total when promo selection changes
     useEffect(() => {
@@ -133,6 +141,9 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
             },
             {
                 onSuccess: (page) => {
+                    // Print receipt after successful payment
+                    handlePrintAfterPayment();
+
                     // Success handled by Inertia
                     onClose();
                     router.reload({ only: ['data'] });
@@ -150,6 +161,94 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 },
             },
         );
+    };
+
+    const handlePrintAfterPayment = async () => {
+        if (!billing) return;
+
+        try {
+            const selectedPromo = selectedPromoId && selectedPromoId !== 'no-promo' ? promos.find((p) => p.id.toString() === selectedPromoId) : null;
+
+            const printData = {
+                namaPelanggan: billing.nama_pelanggan,
+                relay: billing.esp_relay?.nama_relay || '-',
+                mode: billing.mode,
+                durasi: formatDuration(billing.durasi),
+                tarifPerJam: billing.tarif_perjam,
+                totalBiaya: billing.total_biaya,
+                promo: selectedPromo
+                    ? {
+                          name: selectedPromo.name,
+                          type: selectedPromo.type,
+                          value: selectedPromo.value,
+                      }
+                    : null,
+                diskon: billing.total_biaya - calculatedTotal,
+                totalBayar: calculatedTotal,
+                waktuMulai: billing.waktu_mulai,
+                waktuSelesai: billing.waktu_selesai || new Date().toISOString(),
+                tanggalCetak: new Date().toLocaleString('id-ID', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+            };
+
+            // Silent print attempt after payment
+            await ThermalPrinter.printReceipt(printData);
+        } catch (error) {
+            console.error('Print error after payment:', error);
+            // Don't show error to user as payment was successful
+        }
+    };
+
+    const handlePrintReceipt = async () => {
+        if (!billing) return;
+
+        try {
+            const selectedPromo = selectedPromoId && selectedPromoId !== 'no-promo' ? promos.find((p) => p.id.toString() === selectedPromoId) : null;
+
+            const printData = {
+                namaPelanggan: billing.nama_pelanggan,
+                relay: billing.esp_relay?.nama_relay || '-',
+                mode: billing.mode,
+                durasi: formatDuration(billing.durasi),
+                tarifPerJam: billing.tarif_perjam,
+                totalBiaya: billing.total_biaya,
+                promo: selectedPromo
+                    ? {
+                          name: selectedPromo.name,
+                          type: selectedPromo.type,
+                          value: selectedPromo.value,
+                      }
+                    : null,
+                diskon: billing.total_biaya - calculatedTotal,
+                totalBayar: calculatedTotal,
+                waktuMulai: billing.waktu_mulai,
+                waktuSelesai: billing.waktu_selesai || new Date().toISOString(),
+                tanggalCetak: new Date().toLocaleString('id-ID', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+            };
+
+            toast.info('Mengirim ke printer...');
+            const success = await ThermalPrinter.printReceipt(printData);
+
+            if (success) {
+                toast.success('Struk berhasil dicetak!');
+            } else {
+                toast.warning('Print mungkin gagal, silakan coba lagi');
+            }
+        } catch (error) {
+            console.error('Print error:', error);
+            toast.error('Gagal mencetak struk');
+        }
     };
 
     const formatCurrency = (amount: number) => {
@@ -289,8 +388,18 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                     <Button variant="outline" onClick={onClose} disabled={isProcessing}>
                         Batal
                     </Button>
+                    {isPrintSupported && (
+                        <Button
+                            variant="outline"
+                            onClick={handlePrintReceipt}
+                            disabled={isProcessing}
+                            className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                        >
+                            🖨️ Print Saja
+                        </Button>
+                    )}
                     <Button onClick={handlePayment} disabled={isProcessing} className="bg-green-600 hover:bg-green-700">
-                        {isProcessing ? 'Memproses...' : 'Bayar'}
+                        {isProcessing ? 'Memproses...' : '💰 Bayar & Print'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
