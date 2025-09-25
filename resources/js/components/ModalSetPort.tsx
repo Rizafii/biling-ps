@@ -35,6 +35,7 @@ interface Port {
     last_heartbeat?: string;
     server_time?: number;
     start_time?: number;
+    paket_id?: string;
 }
 
 interface ModalSetPortProps {
@@ -55,12 +56,26 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
         mode: 'timed' as 'timed' | 'bebas',
         hours: '',
         minutes: '',
+        selectedPackageId: ''
     });
+    const [packageList, setPackageList] = useState<{ id: string; name: string; harga: number; duration: number }[]>([]);
 
-    // Get current timestamp for server time calculations
+    // Ambil daftar paket saat modal dibuka
+    useEffect(() => {
+        if (isOpen) {
+            fetch('/api/paket')
+                .then((res) => res.json())
+                .then((data) => {
+                    if (Array.isArray(data.paket)) {
+                        setPackageList(data.paket);
+                    }
+                })
+                .catch((err) => console.error('Gagal load paket:', err));
+        }
+    }, [isOpen]);
+
     const getCurrentTimestamp = () => Math.floor(Date.now() / 1000);
 
-    // Reset form data when modal opens
     const resetFormData = () => {
         setPortData({
             customer: '',
@@ -69,6 +84,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             mode: 'timed',
             hours: '',
             minutes: '',
+            selectedPackageId: ''
         });
         setIsFormDirty(false);
     };
@@ -86,20 +102,21 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         mode: port.mode,
                         hours: port.hours || '',
                         minutes: port.minutes || '',
+                        selectedPackageId: port.paket_id || ''
                     });
                 }
             }
         }
     }, [isOpen, port, isFormDirty]);
+    console.log(port.paket_id);
 
-    // Convert jam dan menit ke detik
+
     function jamMenitToDetik(hours: string, minutes: string): number {
         const h = parseInt(hours || '0', 10);
         const m = parseInt(minutes || '0', 10);
         return h * 3600 + m * 60;
     }
 
-    // Hitung total berdasarkan tarif per jam
     function hitungTotal(hourlyRate: string, timeInSeconds: number, mode: string): number {
         const tarif = parseInt(hourlyRate.replace(/\./g, '')) || 0;
 
@@ -140,7 +157,6 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             }
         }
 
-        // Control relay ON (status true = aliran nyala)
         if (controlRelay && port.pin && port.device) {
             try {
                 await controlRelay(port.device, port.pin, true);
@@ -151,7 +167,6 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             }
         }
 
-        // Create billing record in database
         try {
             let durasi = null;
             if (portData.mode === 'timed') {
@@ -176,6 +191,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                     tarif_perjam: parseInt(portData.hourlyRate.replace(/\./g, '')) || 0,
                     promo_id: portData.promoScheme !== 'tanpa-promo' ? portData.promoScheme : null,
                     durasi: durasi,
+                    paket_id: portData.selectedPackageId || null,
                 }),
             });
 
@@ -210,6 +226,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                 subtotal: hitungTotal(portData.hourlyRate, totalSeconds, portData.mode),
                 diskon: 0,
                 start_time: startTime, // Set start time for accurate timer
+                paket_id: portData.selectedPackageId,
             };
 
             onUpdatePort(updatedPort);
@@ -253,7 +270,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         </div>
                     </div>
 
-                    {/* Customer & Rate */}
+                    {/* Nama & Tarif */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="customer">Pelanggan</Label>
@@ -269,8 +286,9 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                 className={port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
                             />
                         </div>
+                        {/* Tarif/Jam */}
                         <div>
-                            <Label htmlFor="rate">Tarif per Jam</Label>
+                            <Label htmlFor="rate">Tarif/Jam</Label>
                             <div className="flex items-center rounded-md border pl-3">
                                 <span className="pr-2 text-gray-500">Rp</span>
                                 <Input
@@ -284,14 +302,17 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                                         setPortData((prev) => ({ ...prev, hourlyRate: formatted }));
                                         setIsFormDirty(true);
                                     }}
-                                    disabled={port.status !== 'idle'}
+                                    disabled={port.status !== 'idle' || !!portData.selectedPackageId} // ✅ Disable kalau pilih paket
                                     className={cn(
                                         'rounded-l-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0',
-                                        port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : '',
+                                        port.status !== 'idle' || !!portData.selectedPackageId
+                                            ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                                            : ''
                                     )}
                                 />
                             </div>
                         </div>
+
                     </div>
 
                     {/* Mode */}
@@ -315,48 +336,113 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                         </Select>
                     </div>
 
-                    {/* Time Input */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Paket */}
+                    {portData.mode === 'timed' && (
                         <div>
-                            <Label htmlFor="hours">Jam</Label>
-                            <Input
-                                id="hours"
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="0"
-                                maxLength={2}
-                                value={portData.hours}
-                                onChange={(e) => {
-                                    const value = e.target.value.replace(/[^0-9]/g, '');
-                                    setPortData((prev) => ({ ...prev, hours: value }));
-                                    setIsFormDirty(true);
-                                }}
-                                disabled={portData.mode === 'bebas' || port.status !== 'idle'}
-                                className={portData.mode === 'bebas' || port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="minutes">Menit</Label>
-                            <Input
-                                id="minutes"
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="0"
-                                maxLength={2}
-                                value={portData.minutes}
-                                onChange={(e) => {
-                                    const value = e.target.value.replace(/[^0-9]/g, '');
-                                    const numValue = parseInt(value || '0', 10);
-                                    if (numValue <= 59) {
-                                        setPortData((prev) => ({ ...prev, minutes: value }));
+                            <Label htmlFor="paket">Pilih Paket</Label>
+                            <Select
+                                value={portData.selectedPackageId || "none"}
+                                disabled={port.status !== 'idle'}
+                                onValueChange={(val) => {
+                                    if (val === "none") {
+                                        // ❌ batal pilih paket → reset value
+                                        setPortData((prev) => ({
+                                            ...prev,
+                                            selectedPackageId: '',
+                                            hours: '',
+                                            minutes: '',
+                                            hourlyRate: '',
+                                        }));
+                                        setIsFormDirty(true);
+                                        return;
+                                    }
+
+                                    const selected = packageList.find(p => p.id === val);
+                                    if (selected) {
+                                        setPortData(prev => {
+                                            const durasiJam = selected.duration / 60;
+                                            const hargaTotal = selected.harga;
+                                            const tarifPerJam = durasiJam > 0 ? hargaTotal / durasiJam : hargaTotal;
+
+                                            return {
+                                                ...prev,
+                                                selectedPackageId: selected.id,
+                                                hours: Math.floor(selected.duration / 60).toString(),
+                                                minutes: (selected.duration % 60).toString(),
+                                                hourlyRate: Math.round(tarifPerJam).toLocaleString("id-ID"),
+                                            };
+                                        });
                                         setIsFormDirty(true);
                                     }
                                 }}
-                                disabled={portData.mode === 'bebas' || port.status !== 'idle'}
-                                className={portData.mode === 'bebas' || port.status !== 'idle' ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''}
-                            />
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Paket" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">-- Tanpa Paket --</SelectItem> {/* ✅ aman */}
+                                    {packageList.map((p) => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.name} - Rp {p.harga.toLocaleString('id-ID')} ({Math.floor(p.duration / 60)}j {p.duration % 60}m)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+
                         </div>
-                    </div>
+                    )}
+
+                    {/* Input Jam & Menit */}
+                    {portData.mode === 'timed' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="hours">Jam</Label>
+                                <Input
+                                    id="hours"
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0"
+                                    maxLength={2}
+                                    value={portData.hours}
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/[^0-9]/g, '');
+                                        setPortData((prev) => ({ ...prev, hours: value }));
+                                        setIsFormDirty(true);
+                                    }}
+                                    disabled={port.status !== 'idle' || !!portData.selectedPackageId} // ✅
+                                    className={port.status !== 'idle' || !!portData.selectedPackageId
+                                        ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                                        : ''}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="minutes">Menit</Label>
+                                <Input
+                                    id="minutes"
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0"
+                                    maxLength={2}
+                                    value={portData.minutes}
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/[^0-9]/g, '');
+                                        const numValue = parseInt(value || '0', 10);
+                                        if (numValue <= 59) {
+                                            setPortData((prev) => ({ ...prev, minutes: value }));
+                                            setIsFormDirty(true);
+                                        }
+                                    }}
+                                    disabled={port.status !== 'idle' || !!portData.selectedPackageId} // ✅
+                                    className={port.status !== 'idle' || !!portData.selectedPackageId
+                                        ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                                        : ''}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+
 
                     {/* Promo */}
                     {/* <div>
@@ -388,8 +474,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                             <div className="flex-1 text-center font-semibold text-red-500">Port Sedang Off</div>
                         ) : port.status === 'idle' ? (
                             <Button onClick={handleStart} className="flex-1 bg-blue-500 hover:bg-blue-600">
-                                <Play className="mr-2 h-4 w-4" />
-                                Mulai
+                                <Play className="mr-2 h-4 w-4" /> Mulai
                             </Button>
                         ) : (
                             <div className="flex-1 text-center font-semibold text-green-600">Port Sedang Berjalan</div>

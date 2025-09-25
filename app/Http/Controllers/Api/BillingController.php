@@ -26,6 +26,7 @@ class BillingController extends Controller
                 'tarif_perjam' => 'required|numeric|min:0',
                 'promo_id' => 'nullable|exists:promos,id',
                 'durasi' => 'nullable|string', // Required for timer mode (HH:MM:SS format)
+                'paket_id'      => 'nullable|integer',
             ]);
 
             // Find the ESP relay by device_id and pin
@@ -73,6 +74,7 @@ class BillingController extends Controller
                 'status' => 'aktif',
                 'tarif_perjam' => $validated['tarif_perjam'],
                 'durasi' => $durasi, // Set duration for timer mode
+                'paket_id'      => $validated['paket_id'] ?? null,
                 'waktu_mulai' => Carbon::now(),
             ]);
 
@@ -87,6 +89,7 @@ class BillingController extends Controller
                     'tarif_perjam' => $billing->tarif_perjam,
                     'durasi' => $billing->durasi,
                     'waktu_mulai' => $billing->waktu_mulai->toISOString(),
+                    'paket_id' => $billing->paket_id,
                 ],
             ]);
 
@@ -168,6 +171,7 @@ class BillingController extends Controller
                     'durasi' => $billing->durasi,
                     'waktu_mulai' => $billing->waktu_mulai->toISOString(),
                     'waktu_selesai' => $billing->waktu_selesai->toISOString(),
+                    'paket_id' => $billing->paket_id,
                 ],
             ]);
 
@@ -256,7 +260,7 @@ class BillingController extends Controller
                     // Check if billing has expired
                     $waktuMulai = Carbon::parse($billing->waktu_mulai);
                     $durasi = $billing->durasi; // Already in HH:MM:SS format
-    
+
                     // Parse duration to add to start time
                     $durasiParts = explode(':', $durasi);
                     $hours = (int) $durasiParts[0];

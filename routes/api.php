@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EspDeviceController;
 use App\Http\Controllers\Api\EspController;
 use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\PaketApiController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -43,3 +44,5 @@ Route::prefix('billing')->group(function () {
     Route::get('/active', [BillingController::class, 'getActiveBilling']);
     Route::post('/check-expired', [BillingController::class, 'checkExpiredTimedBillings']);
 });
+
+Route::get('/paket', [PaketApiController::class, 'index']);
