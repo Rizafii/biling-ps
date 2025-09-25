@@ -29,7 +29,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('/user', UserController::class);
 
-    Route::resource('/role', RoleController::class);
     Route::resource('/paket', PaketController::class);
     // Promo (resource route)
     Route::resource('/promo', PromoController::class);

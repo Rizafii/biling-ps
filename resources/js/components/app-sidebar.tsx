@@ -10,7 +10,6 @@ import { Link } from '@inertiajs/react';
 import { ChartColumn, ClipboardCheck, Gift, Joystick, LayoutGrid, Satellite, Shield, Tags, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 import user from '@/routes/user';
-import role from '@/routes/role';
 import paket from '@/routes/paket';
 
 const mainNavItems: NavItem[] = [
@@ -48,11 +47,6 @@ const mainNavItems: NavItem[] = [
         title: 'User',
         href: user.index.url(),
         icon: Users,
-    },
-    {
-        title: 'Role',
-        href: role.index.url(),
-        icon: Shield,
     },
 ];
 
