@@ -237,6 +237,25 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
         }, 0);
     };
 
+    // Fungsi untuk menghitung transaksi yang sudah selesai (sudah dibayar)
+    const getCompletedTransactions = (data: Billing[]): number => {
+        return data.filter((b) => b.status === 'sudah_bayar').length;
+    };
+
+    // Fungsi untuk menghitung total dari harga setelah promo untuk transaksi yang sudah dibayar
+    const getDailyTotalPaid = (data: Billing[]): number => {
+        return data
+            .filter((b) => b.status === 'sudah_bayar')
+            .reduce((acc: number, b: Billing) => {
+                // Gunakan total_setelah_promo jika ada, jika tidak gunakan total_biaya
+                const amount =
+                    b.total_setelah_promo !== null && b.total_setelah_promo !== undefined
+                        ? parseNumber(b.total_setelah_promo)
+                        : parseNumber(b.total_biaya);
+                return acc + amount;
+            }, 0);
+    };
+
     const clearDateFilter = (): void => {
         setStartDate('');
         setEndDate('');
@@ -372,6 +391,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>No</TableHead>
                                     <TableHead>Pelanggan</TableHead>
                                     <TableHead>Relay</TableHead>
                                     <TableHead>Promo</TableHead>
@@ -388,6 +408,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                 <TableBody>
                                     {filteredBillings.map((billing) => (
                                         <TableRow key={billing.id}>
+                                            <TableCell className="font-medium">{billing.id}</TableCell>
                                             <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
                                             <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
                                             <TableCell>{billing.promo?.name ?? '-'}</TableCell>
@@ -395,7 +416,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                             <TableCell>
                                                 <Badge
                                                     variant="secondary"
-                                                    className={billing.mode === 'timer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}
+                                                    className={
+                                                        billing.mode === 'timer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                                                    }
                                                 >
                                                     {billing.mode}
                                                 </Badge>
@@ -467,9 +490,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                     <Calendar /> {date}
                                                 </CardTitle>
                                                 <div className="flex gap-3 text-sm">
-                                                    <Badge variant="outline">{data.length} transaksi</Badge>
+                                                    <Badge variant="outline">{getCompletedTransactions(data)} transaksi selesai</Badge>
                                                     <Badge className="bg-green-100 text-green-800">
-                                                        Total: Rp {getDailyTotal(data).toLocaleString()}
+                                                        Total: Rp {getDailyTotalPaid(data).toLocaleString()}
                                                     </Badge>
                                                 </div>
                                             </div>
@@ -478,6 +501,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
+                                                        <TableHead>No</TableHead>
                                                         <TableHead>Pelanggan</TableHead>
                                                         <TableHead>Relay</TableHead>
                                                         <TableHead>Promo</TableHead>
@@ -491,8 +515,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {data.map((billing: Billing) => (
+                                                    {data.map((billing: Billing, index: number) => (
                                                         <TableRow key={billing.id}>
+                                                            <TableCell className="font-medium">{index + 1}</TableCell>
                                                             <TableCell className="font-medium">{billing.nama_pelanggan}</TableCell>
                                                             <TableCell>{billing.esp_relay?.nama_relay ?? '-'}</TableCell>
                                                             <TableCell>{billing.promo?.name ?? '-'}</TableCell>
@@ -533,9 +558,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                             <TableCell>
                                                                 {billing.waktu_selesai
                                                                     ? new Date(billing.waktu_selesai).toLocaleTimeString('id-ID', {
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit',
-                                                                    })
+                                                                          hour: '2-digit',
+                                                                          minute: '2-digit',
+                                                                      })
                                                                     : '-'}
                                                             </TableCell>
                                                             <TableCell>
@@ -572,7 +597,7 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                 ))}
                             </div>
                         ) : (
-                            <div className="py-6 text-center text-muted-foreground border-y-2">
+                            <div className="border-y-2 py-6 text-center text-muted-foreground">
                                 {search ? 'Tidak ada histori billing yang ditemukan' : 'Belum ada histori billing terdaftar'}
                             </div>
                         )}
