@@ -13,7 +13,7 @@ import { dashboard } from "@/routes"
 import { type BreadcrumbItem } from "@/types"
 import { Head, useForm } from "@inertiajs/react"
 import { Edit, Eye, Plus, Trash2 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: "Paket", href: dashboard().url },
@@ -49,62 +49,118 @@ interface PaketFormProps {
 }
 
 function PaketForm({ data, setData, errors, onSubmit, processing, submitLabel, onCancel }: PaketFormProps) {
+    const [localHours, setLocalHours] = useState("")
+    const [localMinutes, setLocalMinutes] = useState("")
+
+    // kalau ada data lama (edit), isi awalnya
+    useEffect(() => {
+        if (data.duration != null) {
+            const h = Math.floor(data.duration / 60)
+            const m = data.duration % 60
+            setLocalHours(h > 0 ? h.toString() : "")
+            setLocalMinutes(m > 0 ? m.toString() : "")
+        }
+    }, [data.duration])
+
     return (
         <form onSubmit={onSubmit}>
             <div className="space-y-6">
-                <div className="space-y-3">
-                    <div>
-                        <Label>Nama Paket</Label>
-                        <Input
-                            value={data.name}
-                            onChange={(e) => setData("name", e.target.value)}
-                            placeholder="Contoh: Paket Hemat"
-                        />
-                        {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
-                    </div>
-                    <div>
-                        <Label>Harga</Label>
-                        <div className="flex items-center">
-                            <span className="px-2">Rp</span>
-                            <Input
-                                type="text"
-                                value={data.harga ?? ""}
-                                onChange={(e) => {
-                                    // Hanya ambil angka
-                                    const angkaBersih = e.target.value.replace(/\D/g, "");
-                                    // const formatRibuan = angkaBersih.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                                    // setData("harga", formatRibuan);
-                                    setData("harga", angkaBersih);
-                                }}
+                {/* Nama Paket */}
+                <div>
+                    <Label>Nama Paket</Label>
+                    <Input
+                        value={data.name}
+                        onChange={(e) => setData("name", e.target.value)}
+                        placeholder="Contoh: Paket Hemat"
+                    />
+                    {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                </div>
 
-                                className="flex-1"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <Label>Durasi (menit)</Label>
+                {/* Harga */}
+                <div>
+                    <Label>Harga</Label>
+                    <div className="flex items-center">
+                        <span className="px-2">Rp</span>
                         <Input
                             type="text"
-                            value={data.duration ?? ""}
-                            onChange={(e) => setData("duration", e.target.value.replace(/[^0-9]/g, ""))}
+                            value={data.harga ?? ""}
+                            onChange={(e) => {
+                                const angkaBersih = e.target.value.replace(/\D/g, "")
+                                setData("harga", angkaBersih ? parseInt(angkaBersih) : null)
+                            }}
+                            className="flex-1"
                         />
                     </div>
-                    <div>
-                        <Label>Status</Label>
-                        <Select
-                            value={data.is_active ? "true" : "false"}
-                            onValueChange={(val) => setData("is_active", val === "true")}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Pilih status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="true">Aktif</SelectItem>
-                                <SelectItem value="false">Nonaktif</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
                 </div>
+
+                {/* Durasi */}
+                <div>
+                    <Label>Durasi</Label>
+                    <div className="flex items-center gap-2">
+                        {/* Jam */}
+                        <div className="flex items-center space-x-1">
+                            <Input
+                                type="text"
+                                value={localHours}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "")
+                                    setLocalHours(val)
+
+                                    const h = val ? parseInt(val) : 0
+                                    const m = localMinutes ? parseInt(localMinutes) : 0
+                                    setData("duration", h * 60 + m)
+                                }}
+                                placeholder="0"
+                                className="w-20"
+                            />
+                            <span>Jam</span>
+                        </div>
+
+                        {/* Menit */}
+                        <div className="flex items-center space-x-1">
+                            <Input
+                                type="text"
+                                value={localMinutes}
+                                onChange={(e) => {
+                                    let val = e.target.value.replace(/\D/g, "")
+
+                                    // max 2 digit
+                                    if (val.length > 2) val = val.slice(0, 2)
+
+                                    setLocalMinutes(val)
+
+                                    let m = val ? parseInt(val) : 0
+                                    if (m > 59) m = 59
+                                    const h = localHours ? parseInt(localHours) : 0
+                                    setData("duration", h * 60 + m)
+                                }}
+                                placeholder="00"
+                                className="w-20"
+                            />
+                            <span>Menit</span>
+                        </div>
+                    </div>
+                    {errors.duration && <p className="text-red-500 text-sm">{errors.duration}</p>}
+                </div>
+
+                {/* Status */}
+                <div>
+                    <Label>Status</Label>
+                    <Select
+                        value={data.is_active ? "true" : "false"}
+                        onValueChange={(val) => setData("is_active", val === "true")}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Pilih status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="true">Aktif</SelectItem>
+                            <SelectItem value="false">Nonaktif</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* Tombol */}
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
                     <Button type="submit" disabled={processing}>{submitLabel}</Button>

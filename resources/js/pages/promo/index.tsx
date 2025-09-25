@@ -13,7 +13,7 @@ import { dashboard } from "@/routes"
 import { type BreadcrumbItem } from "@/types"
 import { Head, useForm } from "@inertiajs/react"
 import { Edit, Eye, Plus, Trash2 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: "Promo", href: dashboard().url },
@@ -53,6 +53,30 @@ interface PromoFormProps {
 }
 
 function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, onCancel }: PromoFormProps) {
+    // state lokal untuk promo value (durasi gratis)
+    const [promoHours, setPromoHours] = useState("")
+    const [promoMinutes, setPromoMinutes] = useState("")
+
+    // state lokal untuk min_duration
+    const [minHours, setMinHours] = useState("")
+    const [minMinutes, setMinMinutes] = useState("")
+
+    // isi awal saat edit
+    useEffect(() => {
+        if (data.type === "time" && data.value != null) {
+            const h = Math.floor(data.value / 60)
+            const m = data.value % 60
+            setPromoHours(h > 0 ? h.toString() : "")
+            setPromoMinutes(m > 0 ? m.toString() : "")
+        }
+        if (data.type === "time" && data.min_duration != null) {
+            const h = Math.floor(data.min_duration / 60)
+            const m = data.min_duration % 60
+            setMinHours(h > 0 ? h.toString() : "")
+            setMinMinutes(m > 0 ? m.toString() : "")
+        }
+    }, [data.type, data.value, data.min_duration])
+
     const renderValueInput = () => {
         if (data.type === "flat") {
             return (
@@ -61,7 +85,10 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
                     <Input
                         type="text"
                         value={data.value ?? ""}
-                        onChange={(e) => setData("value", e.target.value.replace(/[^0-9]/g, ""))}
+                        onChange={(e) => {
+                            const clean = e.target.value.replace(/[^0-9]/g, "")
+                            setData("value", clean === "" ? null : Number(clean))
+                        }}
                         className="flex-1"
                     />
                 </div>
@@ -73,7 +100,10 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
                     <Input
                         type="text"
                         value={data.value ?? ""}
-                        onChange={(e) => setData("value", e.target.value.replace(/[^0-9]/g, ""))}
+                        onChange={(e) => {
+                            const clean = e.target.value.replace(/[^0-9]/g, "")
+                            setData("value", clean === "" ? null : Number(clean))
+                        }}
                         className="flex-1"
                     />
                     <span className="px-2">%</span>
@@ -82,14 +112,45 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
         }
         if (data.type === "time") {
             return (
-                <div className="flex items-center">
-                    <Input
-                        type="text"
-                        value={data.value ?? ""}
-                        onChange={(e) => setData("value", e.target.value.replace(/[^0-9]/g, ""))}
-                        className="flex-1"
-                    />
-                    <span className="px-2">menit</span>
+                <div>
+                    <Label>Nilai (Durasi Gratis)</Label>
+                    <div className="flex items-center gap-2">
+                        {/* Jam */}
+                        <div className="flex items-center space-x-1">
+                            <Input
+                                type="text"
+                                value={promoHours}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "")
+                                    setPromoHours(val)
+                                    const h = val ? parseInt(val) : 0
+                                    const m = promoMinutes ? parseInt(promoMinutes) : 0
+                                    setData("value", h * 60 + m)
+                                }}
+                                placeholder="0"
+                            />
+                            <span>Jam</span>
+                        </div>
+                        {/* Menit */}
+                        <div className="flex items-center space-x-1">
+                            <Input
+                                type="text"
+                                value={promoMinutes}
+                                onChange={(e) => {
+                                    let val = e.target.value.replace(/\D/g, "")
+                                    if (val.length > 2) val = val.slice(0, 2)
+                                    let m = val ? parseInt(val) : 0
+                                    if (m > 59) m = 59
+                                    setPromoMinutes(val)
+                                    const h = promoHours ? parseInt(promoHours) : 0
+                                    setData("value", h * 60 + m)
+                                }}
+                                placeholder="00"
+                            />
+                            <span>Menit</span>
+                        </div>
+                    </div>
+                    {errors.value && <p className="text-red-500 text-sm">{errors.value}</p>}
                 </div>
             )
         }
@@ -100,6 +161,7 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
         <form onSubmit={onSubmit}>
             <div className="space-y-6">
                 <div className="space-y-3">
+                    {/* nama, kode, tipe */}
                     <div>
                         <Label>Nama Promo</Label>
                         <Input
@@ -128,18 +190,55 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
                             </SelectContent>
                         </Select>
                     </div>
-                    <div>
-                        <Label>Nilai</Label>
-                        {renderValueInput()}
-                    </div>
-                    <div>
-                        <Label>Min Durasi (menit)</Label>
-                        <Input
-                            type="text"
-                            value={data.min_duration ?? ""}
-                            onChange={(e) => setData("min_duration", e.target.value.replace(/[^0-9]/g, ""))}
-                        />
-                    </div>
+
+                    {/* value */}
+                    <div>{renderValueInput()}</div>
+
+                    {/* min_duration kalau type === time */}
+                    {data.type === "time" && (
+                        <div>
+                            <Label>Min Durasi</Label>
+                            <div className="flex items-center gap-2">
+                                {/* Jam */}
+                                <div className="flex items-center space-x-1">
+                                    <Input
+                                        type="text"
+                                        value={minHours}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, "")
+                                            setMinHours(val)
+                                            const h = val ? parseInt(val) : 0
+                                            const m = minMinutes ? parseInt(minMinutes) : 0
+                                            setData("min_duration", h * 60 + m)
+                                        }}
+                                        placeholder="0"
+                                    />
+                                    <span>Jam</span>
+                                </div>
+                                {/* Menit */}
+                                <div className="flex items-center space-x-1">
+                                    <Input
+                                        type="text"
+                                        value={minMinutes}
+                                        onChange={(e) => {
+                                            let val = e.target.value.replace(/\D/g, "")
+                                            if (val.length > 2) val = val.slice(0, 2)
+                                            let m = val ? parseInt(val) : 0
+                                            if (m > 59) m = 59
+                                            setMinMinutes(val)
+                                            const h = minHours ? parseInt(minHours) : 0
+                                            setData("min_duration", h * 60 + m)
+                                        }}
+                                        placeholder="00"
+                                    />
+                                    <span>Menit</span>
+                                </div>
+                            </div>
+                            {errors.min_duration && <p className="text-red-500 text-sm">{errors.min_duration}</p>}
+                        </div>
+                    )}
+
+                    {/* status */}
                     <div>
                         <Label>Status</Label>
                         <Select
@@ -156,6 +255,7 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
                         </Select>
                     </div>
                 </div>
+
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
                     <Button type="submit" disabled={processing}>{submitLabel}</Button>
@@ -164,6 +264,7 @@ function PromoForm({ data, setData, errors, onSubmit, processing, submitLabel, o
         </form>
     )
 }
+
 
 export default function Index({ promos }: Props) {
     const { data, setData, post, processing, reset, errors, put, delete: destroy } =
@@ -239,19 +340,19 @@ export default function Index({ promos }: Props) {
                 </CardHeader>
 
                 <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Nama</TableHead>
-                                    <TableHead>Kode</TableHead>
-                                    <TableHead>Tipe</TableHead>
-                                    <TableHead>Nilai</TableHead>
-                                    <TableHead>Min Durasi</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Aksi</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                    {filteredPromos.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nama</TableHead>
+                                <TableHead>Kode</TableHead>
+                                <TableHead>Tipe</TableHead>
+                                <TableHead>Nilai</TableHead>
+                                <TableHead>Min Durasi</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        {filteredPromos.length > 0 ? (
                             <TableBody>
                                 {filteredPromos.map((promo) => (
                                     <TableRow key={promo.id}>
@@ -317,13 +418,13 @@ export default function Index({ promos }: Props) {
                                     </TableRow>
                                 ))}
                             </TableBody>
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
-                                {search ? 'Tidak ada promo yang ditemukan' : 'Belum ada data promo'}
-                            </TableCell>
-                        </TableRow>
-                    )}
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
+                                    {search ? 'Tidak ada promo yang ditemukan' : 'Belum ada data promo'}
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </Table>
                 </CardContent>
 

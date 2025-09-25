@@ -43,6 +43,7 @@ interface Port {
     last_heartbeat?: string;
     server_time?: number; // Server timestamp
     start_time?: number; // Start billing timestamp
+    paket_id?: string; // ✅ untuk simpan id paket
 }
 
 export default function Dashboard() {
@@ -612,8 +613,8 @@ export default function Dashboard() {
                                         {isLoading
                                             ? 'Loading ports...'
                                             : search
-                                              ? 'Tidak ada port yang ditemukan'
-                                              : 'Belum ada device/port terdaftar'}
+                                                ? 'Tidak ada port yang ditemukan'
+                                                : 'Belum ada device/port terdaftar'}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -671,8 +672,8 @@ export default function Dashboard() {
                                                         port.status === 'on'
                                                             ? 'bg-red-500 text-white hover:bg-red-600'
                                                             : port.status === 'idle'
-                                                              ? 'bg-green-400 hover:bg-green-500'
-                                                              : 'cursor-not-allowed bg-gray-300',
+                                                                ? 'bg-green-400 hover:bg-green-500'
+                                                                : 'cursor-not-allowed bg-gray-300',
                                                     )}
                                                     onClick={() => handleActionClick(port)}
                                                 >

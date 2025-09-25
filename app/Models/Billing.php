@@ -19,6 +19,7 @@ class Billing extends Model
         'durasi',
         'waktu_mulai',
         'waktu_selesai',
+        'paket_id'
     ];
 
     protected $casts = [
