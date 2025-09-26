@@ -20,22 +20,56 @@ interface PrintData {
 export class ThermalPrinter {
     private static ESC = '\x1B';
     private static GS = '\x1D';
+    private static FS = '\x1C';
 
-    // ESC/POS Commands
+    // ESC/POS Commands - Standard thermal printer commands
     private static COMMANDS = {
-        INIT: '\x1B\x40', // Initialize printer
-        CENTER: '\x1B\x61\x01', // Center align
-        LEFT: '\x1B\x61\x00', // Left align
-        RIGHT: '\x1B\x61\x02', // Right align
-        BOLD_ON: '\x1B\x45\x01', // Bold on
-        BOLD_OFF: '\x1B\x45\x00', // Bold off
-        SIZE_NORMAL: '\x1D\x21\x00', // Normal size
-        SIZE_DOUBLE: '\x1D\x21\x11', // Double size
-        SIZE_WIDE: '\x1D\x21\x10', // Wide
-        SIZE_TALL: '\x1D\x21\x01', // Tall
-        CUT_PAPER: '\x1D\x56\x41', // Cut paper
-        LINE_FEED: '\x0A', // Line feed
-        DOUBLE_LINE_FEED: '\x0A\x0A', // Double line feed
+        // Basic commands
+        INIT: '\x1B\x40',           // ESC @ - Initialize printer
+        RESET: '\x1B\x40',          // ESC @ - Reset printer
+
+        // Text alignment
+        ALIGN_LEFT: '\x1B\x61\x00',      // ESC a 0
+        ALIGN_CENTER: '\x1B\x61\x01',    // ESC a 1
+        ALIGN_RIGHT: '\x1B\x61\x02',     // ESC a 2
+
+        // Text formatting
+        BOLD_ON: '\x1B\x45\x01',         // ESC E 1
+        BOLD_OFF: '\x1B\x45\x00',        // ESC E 0
+        UNDERLINE_ON: '\x1B\x2D\x01',    // ESC - 1
+        UNDERLINE_OFF: '\x1B\x2D\x00',   // ESC - 0
+
+        // Text size - GS !
+        SIZE_NORMAL: '\x1D\x21\x00',     // GS ! 0 (normal)
+        SIZE_DOUBLE_HEIGHT: '\x1D\x21\x01', // GS ! 1 (double height)
+        SIZE_DOUBLE_WIDTH: '\x1D\x21\x10',  // GS ! 16 (double width)
+        SIZE_DOUBLE_BOTH: '\x1D\x21\x11',   // GS ! 17 (double height & width)
+        SIZE_TRIPLE: '\x1D\x21\x22',     // GS ! 34 (triple size)
+
+        // Character set
+        CHARSET_PC437: '\x1B\x74\x00',   // ESC t 0 (PC437 USA)
+        CHARSET_KATAKANA: '\x1B\x74\x01', // ESC t 1 (Katakana)
+        CHARSET_PC850: '\x1B\x74\x02',   // ESC t 2 (PC850 Multilingual)
+
+        // Line spacing
+        LINE_SPACING_DEFAULT: '\x1B\x32', // ESC 2 (default line spacing)
+        LINE_SPACING_TIGHT: '\x1B\x33\x10', // ESC 3 16 (tight spacing)
+
+        // Paper control
+        PAPER_CUT_FULL: '\x1D\x56\x00',     // GS V 0 (full cut)
+        PAPER_CUT_PARTIAL: '\x1D\x56\x01',  // GS V 1 (partial cut)
+        PAPER_FEED_LINE: '\x0A',            // LF
+        PAPER_FEED_LINES: '\x1B\x64',       // ESC d (feed n lines)
+
+        // Special characters
+        BEEP: '\x07',                    // BEL (beep)
+        TAB: '\x09',                     // HT (horizontal tab)
+        CARRIAGE_RETURN: '\x0D',         // CR
+
+        // Barcode commands (if needed)
+        BARCODE_HEIGHT: '\x1D\x68',     // GS h
+        BARCODE_WIDTH: '\x1D\x77',      // GS w
+        BARCODE_PRINT: '\x1D\x6B',      // GS k
     };
 
     private static formatCurrency(amount: number): string {
@@ -58,107 +92,182 @@ export class ThermalPrinter {
         });
     }
 
-    private static padLine(left: string, right: string, totalWidth: number = 32): string {
-        const padding = totalWidth - left.length - right.length;
-        return left + ' '.repeat(Math.max(0, padding)) + right;
+    private static formatTime(dateString: string): string {
+        const date = new Date(dateString);
+        return date.toLocaleString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
     }
 
+    private static formatDate(dateString: string): string {
+        const date = new Date(dateString);
+        return date.toLocaleString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        });
+    }
+
+    // Create properly spaced line with exact character positioning
+    private static createLine(left: string, right: string, totalWidth: number = 32): string {
+        // Ensure strings don't exceed available space
+        const maxLeftWidth = totalWidth - right.length - 1; // -1 for at least one space
+        const truncatedLeft = left.length > maxLeftWidth ? left.substring(0, maxLeftWidth) : left;
+
+        const spacesNeeded = totalWidth - truncatedLeft.length - right.length;
+        const spaces = spacesNeeded > 0 ? ' '.repeat(spacesNeeded) : ' ';
+
+        return truncatedLeft + spaces + right;
+    }
+
+    // Create centered text
     private static centerText(text: string, width: number = 32): string {
-        const padding = Math.max(0, width - text.length);
-        const leftPad = Math.floor(padding / 2);
-        const rightPad = padding - leftPad;
-        return ' '.repeat(leftPad) + text + ' '.repeat(rightPad);
+        if (text.length >= width) return text.substring(0, width);
+
+        const totalPadding = width - text.length;
+        const leftPadding = Math.floor(totalPadding / 2);
+        const rightPadding = totalPadding - leftPadding;
+
+        return ' '.repeat(leftPadding) + text + ' '.repeat(rightPadding);
+    }
+
+    // Create separator line
+    private static createSeparator(char: string = '-', width: number = 32): string {
+        return char.repeat(width);
     }
 
     private static generateReceiptContent(data: PrintData): string {
         const { COMMANDS } = ThermalPrinter;
         let content = '';
 
-        // Initialize printer
+        // Initialize printer with proper settings
         content += COMMANDS.INIT;
+        content += COMMANDS.CHARSET_PC437;  // Set character set
+        content += COMMANDS.LINE_SPACING_DEFAULT; // Set line spacing
 
-        // Header
-        content += COMMANDS.CENTER + COMMANDS.BOLD_ON + COMMANDS.SIZE_DOUBLE;
-        content += 'BILLING PLAYSTATION\n';
-        content += COMMANDS.SIZE_NORMAL + COMMANDS.BOLD_OFF;
-        content += ThermalPrinter.centerText('STRUK PEMBAYARAN') + '\n';
-        content += COMMANDS.LEFT;
-        content += '================================\n';
+        // Header - Business name
+        content += COMMANDS.ALIGN_CENTER;
+        content += COMMANDS.SIZE_DOUBLE_BOTH;
+        content += COMMANDS.BOLD_ON;
+        content += 'BILLING PS' + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.SIZE_NORMAL;
+        content += COMMANDS.BOLD_OFF;
 
-        // Receipt info
-        content += ThermalPrinter.padLine('No. Struk:', `#${Date.now().toString().slice(-6)}`) + '\n';
-        content += ThermalPrinter.padLine('Tanggal:', data.tanggalCetak) + '\n';
-        content += '--------------------------------\n';
+        // Subtitle
+        content += COMMANDS.SIZE_DOUBLE_WIDTH;
+        content += 'STRUK PEMBAYARAN' + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.SIZE_NORMAL;
+        content += COMMANDS.ALIGN_LEFT;
 
-        // Customer info
-        content += COMMANDS.BOLD_ON + 'DETAIL PELANGGAN\n' + COMMANDS.BOLD_OFF;
-        content += ThermalPrinter.padLine('Nama:', data.namaPelanggan) + '\n';
-        content += ThermalPrinter.padLine('Relay:', data.relay) + '\n';
-        content += ThermalPrinter.padLine('Mode:', data.mode.toUpperCase()) + '\n';
-        content += '--------------------------------\n';
+        // Separator
+        content += this.createSeparator('=') + COMMANDS.PAPER_FEED_LINE;
 
-        // Session info
-        content += COMMANDS.BOLD_ON + 'DETAIL SESI\n' + COMMANDS.BOLD_OFF;
-        content += ThermalPrinter.padLine('Mulai:', ThermalPrinter.formatDateTime(data.waktuMulai)) + '\n';
-        content += ThermalPrinter.padLine('Selesai:', ThermalPrinter.formatDateTime(data.waktuSelesai)) + '\n';
-        content += ThermalPrinter.padLine('Durasi:', data.durasi) + '\n';
-        content += ThermalPrinter.padLine('Tarif/Jam:', ThermalPrinter.formatCurrency(data.tarifPerJam)) + '\n';
-        content += '--------------------------------\n';
+        // Receipt details
+        const receiptNo = `#${Date.now().toString().slice(-6)}`;
+        content += this.createLine('No. Struk:', receiptNo) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Tanggal:', this.formatDate(data.tanggalCetak)) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Waktu:', this.formatTime(data.tanggalCetak)) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createSeparator() + COMMANDS.PAPER_FEED_LINE;
 
-        // Billing details
-        content += COMMANDS.BOLD_ON + 'DETAIL TAGIHAN\n' + COMMANDS.BOLD_OFF;
-        content += ThermalPrinter.padLine('Subtotal:', ThermalPrinter.formatCurrency(data.totalBiaya)) + '\n';
+        // Customer information
+        content += COMMANDS.BOLD_ON;
+        content += 'DATA PELANGGAN' + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.BOLD_OFF;
+        content += this.createLine('Nama:', data.namaPelanggan) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Relay:', data.relay) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Mode:', data.mode.toUpperCase()) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createSeparator() + COMMANDS.PAPER_FEED_LINE;
 
-        // Promo details
+        // Session details
+        content += COMMANDS.BOLD_ON;
+        content += 'DATA SESI BERMAIN' + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.BOLD_OFF;
+        content += this.createLine('Mulai:', this.formatTime(data.waktuMulai)) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Selesai:', this.formatTime(data.waktuSelesai)) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Durasi:', data.durasi) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createLine('Tarif/Jam:', this.formatCurrency(data.tarifPerJam)) + COMMANDS.PAPER_FEED_LINE;
+        content += this.createSeparator() + COMMANDS.PAPER_FEED_LINE;
+
+        // Billing calculation
+        content += COMMANDS.BOLD_ON;
+        content += 'RINCIAN TAGIHAN' + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.BOLD_OFF;
+        content += this.createLine('Subtotal:', this.formatCurrency(data.totalBiaya)) + COMMANDS.PAPER_FEED_LINE;
+
+        // Promo information (if exists)
         if (data.promo && data.diskon > 0) {
-            content += ThermalPrinter.padLine('Promo:', data.promo.name) + '\n';
+            content += this.createLine('Promo:', data.promo.name) + COMMANDS.PAPER_FEED_LINE;
+
+            // Show promo details
             let promoDetail = '';
-            if (data.promo.type === 'flat') {
-                promoDetail = `Diskon ${ThermalPrinter.formatCurrency(data.promo.value)}`;
-            } else if (data.promo.type === 'percent') {
-                promoDetail = `Diskon ${data.promo.value}%`;
-            } else if (data.promo.type === 'time') {
-                promoDetail = `Gratis ${data.promo.value} menit`;
+            switch (data.promo.type) {
+                case 'flat':
+                    promoDetail = `Pot. ${this.formatCurrency(data.promo.value)}`;
+                    break;
+                case 'percent':
+                    promoDetail = `Disc ${data.promo.value}%`;
+                    break;
+                case 'time':
+                    promoDetail = `Bonus ${data.promo.value} menit`;
+                    break;
+                default:
+                    promoDetail = 'Diskon';
             }
-            content += ThermalPrinter.padLine('', promoDetail) + '\n';
-            content += ThermalPrinter.padLine('Diskon:', `-${ThermalPrinter.formatCurrency(data.diskon)}`) + '\n';
+            content += this.createLine('', promoDetail) + COMMANDS.PAPER_FEED_LINE;
+            content += this.createLine('Potongan:', `-${this.formatCurrency(data.diskon)}`) + COMMANDS.PAPER_FEED_LINE;
         }
 
-        content += '================================\n';
-        content += COMMANDS.BOLD_ON + COMMANDS.SIZE_WIDE;
-        content += ThermalPrinter.padLine('TOTAL BAYAR:', ThermalPrinter.formatCurrency(data.totalBayar)) + '\n';
-        content += COMMANDS.SIZE_NORMAL + COMMANDS.BOLD_OFF;
-        content += '================================\n';
+        // Total separator
+        content += this.createSeparator('=') + COMMANDS.PAPER_FEED_LINE;
 
-        // Footer
-        content += COMMANDS.CENTER;
-        content += '\n';
-        content += 'Terima kasih atas kunjungan Anda\n';
-        content += '\n\n\n';
+        // Total amount - emphasized
+        content += COMMANDS.SIZE_DOUBLE_WIDTH;
+        content += COMMANDS.BOLD_ON;
+        content += this.createLine('TOTAL BAYAR:', this.formatCurrency(data.totalBayar), 16) + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.SIZE_NORMAL;
+        content += COMMANDS.BOLD_OFF;
+
+        content += this.createSeparator('=') + COMMANDS.PAPER_FEED_LINE;
+
+        // Footer message
+        content += COMMANDS.ALIGN_CENTER;
+        content += COMMANDS.PAPER_FEED_LINE;
+        content += 'Terima Kasih' + COMMANDS.PAPER_FEED_LINE;
+        content += 'Selamat Bermain!' + COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.PAPER_FEED_LINE;
+
+        // Small footer info
+        content += COMMANDS.SIZE_NORMAL;
+        content += this.centerText('-- STRUK INI ADALAH BUKTI --') + COMMANDS.PAPER_FEED_LINE;
+        content += this.centerText('-- PEMBAYARAN YANG SAH --') + COMMANDS.PAPER_FEED_LINE;
+
+        // Extra line feeds before cutting
+        content += COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.PAPER_FEED_LINE;
+        content += COMMANDS.PAPER_FEED_LINE;
 
         // Cut paper
-        content += COMMANDS.CUT_PAPER;
+        content += COMMANDS.PAPER_CUT_PARTIAL;
 
         return content;
     }
 
     public static async printReceipt(data: PrintData): Promise<boolean> {
         try {
-            // Try modern Web Serial API first (Chrome 89+)
+            // Try Web Serial API first for direct ESC/POS printing
             if ('serial' in navigator && (navigator as any).serial) {
                 try {
                     return await this.printViaWebSerial(data);
                 } catch (serialError) {
-                    console.warn('Web Serial failed, trying alternative methods:', serialError);
+                    console.warn('Web Serial failed, trying alternative:', serialError);
                 }
             }
 
-            // Fallback to window.print() with formatted content
+            // Fallback to formatted HTML printing
             return await this.printViaWindowPrint(data);
         } catch (error) {
             console.error('Print error:', error);
-
-            // Final fallback - show print dialog with formatted content
             this.showPrintPreview(data);
             return true;
         }
@@ -166,28 +275,29 @@ export class ThermalPrinter {
 
     private static async printViaWebSerial(data: PrintData): Promise<boolean> {
         try {
-            // Check if user has already granted permission
             const availablePorts = await (navigator as any).serial.getPorts();
             let port;
 
             if (availablePorts.length > 0) {
-                // Use the first available port
                 port = availablePorts[0];
             } else {
-                // Request serial port access
                 port = await (navigator as any).serial.requestPort({
                     filters: [
-                        // Common thermal printer vendor IDs
                         { usbVendorId: 0x0416 }, // CUSTOM
                         { usbVendorId: 0x04b8 }, // Epson
-                        { usbVendorId: 0x0519 }, // Star
+                        { usbVendorId: 0x0519 }, // Star Micronics
                         { usbVendorId: 0x0fe6 }, // ICS Advent
+                        { usbVendorId: 0x20d1 }, // Xprinter
+                        { usbVendorId: 0x1fc9 }, // NXP (some thermal printers)
+                        { usbVendorId: 0x1a86 }, // QinHeng (common USB-to-serial)
+                        { usbVendorId: 0x0403 }, // FTDI
                     ],
                 });
             }
 
+            // Common thermal printer serial settings
             await port.open({
-                baudRate: 9600,
+                baudRate: 9600,  // Most common for thermal printers
                 dataBits: 8,
                 stopBits: 1,
                 parity: 'none',
@@ -196,9 +306,14 @@ export class ThermalPrinter {
 
             const writer = port.writable.getWriter();
             const receiptContent = this.generateReceiptContent(data);
-            const encoder = new TextEncoder();
 
-            await writer.write(encoder.encode(receiptContent));
+            // Convert to bytes - crucial for proper ESC/POS handling
+            const bytes = new Uint8Array(receiptContent.length);
+            for (let i = 0; i < receiptContent.length; i++) {
+                bytes[i] = receiptContent.charCodeAt(i);
+            }
+
+            await writer.write(bytes);
             await writer.close();
             await port.close();
 
@@ -210,10 +325,9 @@ export class ThermalPrinter {
     }
 
     private static async printViaWindowPrint(data: PrintData): Promise<boolean> {
-        // Create a formatted HTML version for standard printing
         const printContent = this.generateHTMLReceipt(data);
+        const printWindow = window.open('', '_blank', 'width=350,height=700');
 
-        const printWindow = window.open('', '_blank', 'width=300,height=600');
         if (!printWindow) {
             throw new Error('Could not open print window');
         }
@@ -221,10 +335,11 @@ export class ThermalPrinter {
         printWindow.document.write(printContent);
         printWindow.document.close();
 
-        // Wait for content to load then print
         printWindow.onload = () => {
-            printWindow.print();
-            printWindow.close();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
         };
 
         return true;
@@ -232,195 +347,253 @@ export class ThermalPrinter {
 
     private static generateHTMLReceipt(data: PrintData): string {
         return `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Struk Pembayaran</title>
-                <style>
-                    @media print {
-                        @page {
-                            size: 58mm auto;
-                            margin: 2mm;
-                        }
-                    }
-                    body {
-                        font-family: 'Courier New', monospace;
-                        font-size: 12px;
-                        line-height: 1.2;
-                        margin: 0;
-                        padding: 5px;
-                        width: 58mm;
-                        background: white;
-                    }
-                    .center { text-align: center; }
-                    .bold { font-weight: bold; }
-                    .large { font-size: 16px; }
-                    .line { border-bottom: 1px dashed #000; margin: 2px 0; }
-                    .row { display: flex; justify-content: space-between; }
-                    .double-line { border-bottom: 2px solid #000; margin: 2px 0; }
-                </style>
-            </head>
-            <body>
-                <div class="center bold large">BILLING PLAYSTATION</div>
-                <div class="center">STRUK PEMBAYARAN</div>
-                <div class="line"></div>
-                
-                <div class="row">
-                    <span>No. Struk:</span>
-                    <span>#${Date.now().toString().slice(-6)}</span>
-                </div>
-                <div class="row">
-                    <span>Tanggal:</span>
-                    <span>${data.tanggalCetak}</span>
-                </div>
-                <div class="line"></div>
-                
-                <div class="bold">DETAIL PELANGGAN</div>
-                <div class="row">
-                    <span>Nama:</span>
-                    <span>${data.namaPelanggan}</span>
-                </div>
-                <div class="row">
-                    <span>Relay:</span>
-                    <span>${data.relay}</span>
-                </div>
-                <div class="row">
-                    <span>Mode:</span>
-                    <span>${data.mode.toUpperCase()}</span>
-                </div>
-                <div class="line"></div>
-                
-                <div class="bold">DETAIL SESI</div>
-                <div class="row">
-                    <span>Mulai:</span>
-                    <span>${this.formatDateTime(data.waktuMulai)}</span>
-                </div>
-                <div class="row">
-                    <span>Selesai:</span>
-                    <span>${this.formatDateTime(data.waktuSelesai)}</span>
-                </div>
-                <div class="row">
-                    <span>Durasi:</span>
-                    <span>${data.durasi}</span>
-                </div>
-                <div class="row">
-                    <span>Tarif/Jam:</span>
-                    <span>${this.formatCurrency(data.tarifPerJam)}</span>
-                </div>
-                <div class="line"></div>
-                
-                <div class="bold">DETAIL TAGIHAN</div>
-                <div class="row">
-                    <span>Subtotal:</span>
-                    <span>${this.formatCurrency(data.totalBiaya)}</span>
-                </div>
-                
-                ${
-                    data.promo && data.diskon > 0
-                        ? `
-                    <div class="row">
-                        <span>Promo:</span>
-                        <span>${data.promo.name}</span>
-                    </div>
-                    <div class="row">
-                        <span>Diskon:</span>
-                        <span>-${this.formatCurrency(data.diskon)}</span>
-                    </div>
-                `
-                        : ''
-                }
-                
-                <div class="double-line"></div>
-                <div class="row bold large">
-                    <span>TOTAL BAYAR:</span>
-                    <span>${this.formatCurrency(data.totalBayar)}</span>
-                </div>
-                <div class="double-line"></div>
-                
-                <div class="center">
-                    <br>
-                    Terima kasih atas kunjungan Anda<br>
-                    Selamat bermain!<br>
-                    <br>
-                    <div class="line"></div>
-                    Powered by Billing PS System
-                </div>
-            </body>
-            </html>
-        `;
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Struk Pembayaran PlayStation</title>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: 58mm auto;
+            margin: 2mm 1mm;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        body {
+            font-family: 'Courier New', 'Courier', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            margin: 0;
+            padding: 2mm;
+            width: 54mm;
+            background: white;
+            color: black;
+        }
+
+        .center { text-align: center; }
+        .left { text-align: left; }
+        .right { text-align: right; }
+
+        .bold { font-weight: bold; }
+        .normal { font-weight: normal; }
+
+        .size-normal { font-size: 11px; }
+        .size-large { font-size: 14px; }
+        .size-xlarge { font-size: 16px; }
+
+        .line-single {
+            border-bottom: 1px solid #000;
+            margin: 1px 0;
+            height: 0;
+        }
+        .line-double {
+            border-bottom: 2px solid #000;
+            margin: 1px 0;
+            height: 0;
+        }
+        .line-dashed {
+            border-bottom: 1px dashed #000;
+            margin: 1px 0;
+            height: 0;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .row-left { flex: 1; text-align: left; }
+        .row-right { text-align: right; }
+
+        .section { margin: 2px 0; }
+        .separator { margin: 3px 0; }
+
+        .footer { margin-top: 4mm; }
+
+        /* Prevent text wrapping and ensure consistent spacing */
+        * {
+            box-sizing: border-box;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="center bold size-xlarge">BILLING PS</div>
+    <div class="center bold size-large">STRUK PEMBAYARAN</div>
+    <div class="line-double separator"></div>
+
+    <div class="row">
+        <span class="row-left">No. Struk:</span>
+        <span class="row-right">#${Date.now().toString().slice(-6)}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Tanggal:</span>
+        <span class="row-right">${this.formatDate(data.tanggalCetak)}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Waktu:</span>
+        <span class="row-right">${this.formatTime(data.tanggalCetak)}</span>
+    </div>
+    <div class="line-single separator"></div>
+
+    <div class="bold section">DATA PELANGGAN</div>
+    <div class="row">
+        <span class="row-left">Nama:</span>
+        <span class="row-right">${data.namaPelanggan}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Relay:</span>
+        <span class="row-right">${data.relay}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Mode:</span>
+        <span class="row-right">${data.mode.toUpperCase()}</span>
+    </div>
+    <div class="line-single separator"></div>
+
+    <div class="bold section">DATA SESI BERMAIN</div>
+    <div class="row">
+        <span class="row-left">Mulai:</span>
+        <span class="row-right">${this.formatTime(data.waktuMulai)}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Selesai:</span>
+        <span class="row-right">${this.formatTime(data.waktuSelesai)}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Durasi:</span>
+        <span class="row-right">${data.durasi}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Tarif/Jam:</span>
+        <span class="row-right">${this.formatCurrency(data.tarifPerJam)}</span>
+    </div>
+    <div class="line-single separator"></div>
+
+    <div class="bold section">RINCIAN TAGIHAN</div>
+    <div class="row">
+        <span class="row-left">Subtotal:</span>
+        <span class="row-right">${this.formatCurrency(data.totalBiaya)}</span>
+    </div>
+
+    ${data.promo && data.diskon > 0 ? `
+    <div class="row">
+        <span class="row-left">Promo:</span>
+        <span class="row-right">${data.promo.name}</span>
+    </div>
+    <div class="row">
+        <span class="row-left">Potongan:</span>
+        <span class="row-right">-${this.formatCurrency(data.diskon)}</span>
+    </div>
+    ` : ''}
+
+    <div class="line-double separator"></div>
+    <div class="row bold size-large">
+        <span class="row-left">TOTAL BAYAR:</span>
+        <span class="row-right">${this.formatCurrency(data.totalBayar)}</span>
+    </div>
+    <div class="line-double separator"></div>
+
+    <div class="center footer">
+        <div class="section">Terima Kasih</div>
+        <div class="section">Selamat Bermain!</div>
+        <br>
+        <div class="size-normal">-- STRUK INI ADALAH BUKTI --</div>
+        <div class="size-normal">-- PEMBAYARAN YANG SAH --</div>
+    </div>
+</body>
+</html>`;
     }
 
     private static showPrintPreview(data: PrintData): void {
-        // Create a modal with the receipt content for manual printing
         const modal = document.createElement('div');
         modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex; justify-content: center;
+            align-items: center; z-index: 9999; backdrop-filter: blur(2px);
         `;
 
         const content = document.createElement('div');
         content.style.cssText = `
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow-y: auto;
+            background: white; padding: 20px; border-radius: 12px;
+            max-width: 400px; max-height: 85vh; overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         `;
 
+        // Clean receipt content for preview
         const receiptText = this.generateReceiptContent(data)
-            .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters for display
-            .replace(/\n/g, '<br>');
+            .replace(/[\x00-\x1F\x7F-\xFF]/g, '') // Remove all control chars
+            .split('\n')
+            .filter(line => line.trim()) // Remove empty lines
+            .join('<br>');
 
         content.innerHTML = `
-            <h3>Preview Struk</h3>
-            <div style="font-family: monospace; font-size: 12px; white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 4px;">
-                ${receiptText}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #333;">Preview Struk</h3>
+                <button onclick="this.closest('[style*=fixed]').remove()"
+                        style="background: #dc3545; color: white; border: none;
+                               border-radius: 50%; width: 30px; height: 30px;
+                               cursor: pointer; font-size: 18px; line-height: 1;">×</button>
             </div>
+
+            <div style="font-family: 'Courier New', monospace; font-size: 11px;
+                        background: #f8f9fa; padding: 15px; border-radius: 6px;
+                        border: 2px dashed #dee2e6; max-height: 400px; overflow-y: auto;">
+                ${receiptText || 'Preview tidak tersedia'}
+            </div>
+
             <div style="margin-top: 15px; text-align: center;">
-                <button onclick="window.print()" style="margin-right: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                    Print
+                <button onclick="window.print()"
+                        style="margin-right: 10px; padding: 10px 20px; background: #007bff;
+                               color: white; border: none; border-radius: 6px; cursor: pointer;
+                               font-weight: 500;">
+                    🖨️ Print Sekarang
                 </button>
-                <button onclick="this.closest('[style*=fixed]').remove()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                    Close
+                <button onclick="this.closest('[style*=fixed]').remove()"
+                        style="padding: 10px 20px; background: #6c757d; color: white;
+                               border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    Tutup
                 </button>
+            </div>
+
+            <div style="margin-top: 10px; font-size: 12px; color: #6c757d; text-align: center;">
+                💡 Tip: Gunakan printer thermal untuk hasil terbaik
             </div>
         `;
 
         modal.appendChild(content);
         document.body.appendChild(modal);
 
-        // Close on background click
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
+            if (e.target === modal) modal.remove();
         });
+
+        // Keyboard shortcut
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
     }
 
+    // Enhanced utility methods
     public static async isSupported(): Promise<boolean> {
-        // Check Web Serial API support
-        if ('serial' in navigator && (navigator as any).serial) {
-            return true;
-        }
-
-        // Check standard print support
-        if (typeof window !== 'undefined' && typeof window.print === 'function') {
-            return true;
-        }
-
+        if ('serial' in navigator && (navigator as any).serial) return true;
+        if (typeof window !== 'undefined' && typeof window.print === 'function') return true;
         return false;
     }
 
-    // Method to check if thermal printer is connected
     public static async checkPrinterConnection(): Promise<boolean> {
         try {
             if ('serial' in navigator && (navigator as any).serial) {
@@ -434,7 +607,6 @@ export class ThermalPrinter {
         }
     }
 
-    // Method to get available printer ports
     public static async getAvailablePorts(): Promise<any[]> {
         try {
             if ('serial' in navigator && (navigator as any).serial) {
@@ -446,4 +618,6 @@ export class ThermalPrinter {
             return [];
         }
     }
+
+
 }
