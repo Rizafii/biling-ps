@@ -45,9 +45,10 @@ interface ModalSetPortProps {
     onUpdatePort: (updated: Port) => void;
     timeFormat: (t: number) => string;
     controlRelay?: (deviceId: string, pin: number, status: boolean) => Promise<void>;
+    currentUserId?: number; // Add current user ID prop
 }
 
-export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, controlRelay }: ModalSetPortProps) {
+export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, controlRelay, currentUserId }: ModalSetPortProps) {
     const [isFormDirty, setIsFormDirty] = useState(false);
     const [portData, setPortData] = useState({
         customer: '',
@@ -145,6 +146,8 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
             return;
         }
 
+        console.log('Starting billing with user_id:', currentUserId); // Debug log
+
         let totalSeconds = 0;
         let billingSeconds = 0;
 
@@ -192,6 +195,7 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
                     promo_id: portData.promoScheme !== 'tanpa-promo' ? portData.promoScheme : null,
                     durasi: durasi,
                     paket_id: portData.selectedPackageId || null,
+                    user_id: currentUserId || 1, // Include user_id from prop
                 }),
             });
 
@@ -470,15 +474,15 @@ export function ModalSetPort({ isOpen, onClose, port, onUpdatePort, timeFormat, 
 
                     {/* Action Buttons */}
                     <div className="flex gap-3">
-                        {port.status === 'off' ? (
-                            <div className="flex-1 text-center font-semibold text-red-500">Port Sedang Off</div>
-                        ) : port.status === 'idle' ? (
+                        {/* {port.status === 'off' ? ( */}
+                            {/* <div className="flex-1 text-center font-semibold text-red-500">Port Sedang Off</div> */}
+                        {/* ) : port.status === 'idle' ? ( */}
                             <Button onClick={handleStart} className="flex-1 bg-blue-500 hover:bg-blue-600">
                                 <Play className="mr-2 h-4 w-4" /> Mulai
                             </Button>
-                        ) : (
-                            <div className="flex-1 text-center font-semibold text-green-600">Port Sedang Berjalan</div>
-                        )}
+                        {/* // ) : (
+                        //     <div className="flex-1 text-center font-semibold text-green-600">Port Sedang Berjalan</div>
+                        // )} */}
                     </div>
                 </div>
             </DialogContent>

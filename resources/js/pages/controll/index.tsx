@@ -65,10 +65,40 @@ export default function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
     const [serverTimeOffset, setServerTimeOffset] = useState(0); // Offset between client and server time
+    const [currentUser, setCurrentUser] = useState<{ id: number, name: string } | null>(null); // Add current user state
     const serverTimeRef = useRef<number>(0);
 
     // Calculate current client timestamp
     const getCurrentTimestamp = () => Math.floor(Date.now() / 1000);
+
+    // Fetch current user data
+    const fetchCurrentUser = useCallback(async () => {
+        try {
+            const response = await fetch('/api/user', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (response.ok) {
+                const user = await response.json();
+                setCurrentUser({ id: user.id, name: user.name });
+                console.log('Current user:', user);
+            } else {
+                console.warn('Failed to fetch current user');
+                // Set fallback user if API fails
+                setCurrentUser({ id: 1, name: 'Default User' });
+            }
+        } catch (error) {
+            console.error('Error fetching current user:', error);
+            // Set fallback user if request fails
+            setCurrentUser({ id: 1, name: 'Default User' });
+        }
+    }, []);
 
     // Fetch ports data from API
     const fetchPorts = useCallback(async (showLoading = false) => {
@@ -250,6 +280,7 @@ export default function Dashboard() {
     // Auto-refresh ports setiap 5 detik
     useEffect(() => {
         // Initial load
+        fetchCurrentUser(); // Fetch current user first
         fetchPorts(true);
 
         const interval = setInterval(() => {
@@ -261,7 +292,7 @@ export default function Dashboard() {
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [modalOpen, modalConfirmOpen, modalEditOpen, checkExpiredBillings]);
+    }, [modalOpen, modalConfirmOpen, modalEditOpen, checkExpiredBillings, fetchCurrentUser]);
 
     const handleUpdatePort = (updated: Port) => {
         setPortsData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -697,6 +728,7 @@ export default function Dashboard() {
                     timeFormat={timeFormat}
                     onUpdatePort={handleUpdatePort}
                     controlRelay={controlRelay}
+                    currentUserId={currentUser?.id} // Pass current user ID
                 />
             )}
             {selectedPort && (

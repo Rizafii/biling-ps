@@ -23,6 +23,11 @@ interface EspRelay {
     updated_at: string;
 }
 
+interface User {
+    id: number;
+    name: string;
+}
+
 interface Promo {
     id: number;
     name: string;
@@ -38,6 +43,7 @@ interface Promo {
 interface Billing {
     id: number;
     esp_relay_id: number;
+    user_id: number;
     promo_id: number | null;
     nama_pelanggan: string;
     mode: 'bebas' | 'timer';
@@ -52,6 +58,7 @@ interface Billing {
     updated_at: string;
     promo?: Promo | null;
     esp_relay?: EspRelay | null;
+    user: User | null;
 }
 
 interface GroupedData {
@@ -69,6 +76,7 @@ interface IndexProps {
 
 export default function Index({ data, promo, esp_relay }: IndexProps) {
     const { props } = usePage<any>();
+    const auth = props.auth;
     const [showAlert, setShowAlert] = useState(false);
 
     // Show flash messages
@@ -508,7 +516,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                         <TableHead>Mode</TableHead>
                                                         <TableHead>Status</TableHead>
                                                         <TableHead>Durasi</TableHead>
-                                                        <TableHead>Total</TableHead>
+                                                        {auth.user.role.name === 'karyawan' ? null :
+                                                            <TableHead>Total</TableHead>
+                                                        }
                                                         <TableHead>Waktu Mulai</TableHead>
                                                         <TableHead>Waktu Selesai</TableHead>
                                                         <TableHead>Aksi</TableHead>
@@ -543,12 +553,16 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>{billing.durasi ? billing.durasi : '-'}</TableCell>
-                                                            <TableCell className="font-semibold">
-                                                                {formatCurrency(getDisplayAmount(billing))}
-                                                                {billing.status === 'sudah_bayar' && billing.promo && (
-                                                                    <div className="text-xs text-green-600">Dengan promo: {billing.promo.name}</div>
-                                                                )}
-                                                            </TableCell>
+                                                            {auth.user.role.name !== 'karyawan' && (
+                                                                <TableCell className="font-semibold">
+                                                                    {formatCurrency(getDisplayAmount(billing))}
+                                                                    {billing.status === 'sudah_bayar' && billing.promo && (
+                                                                        <div className="text-xs text-green-600">
+                                                                            Dengan promo: {billing.promo.name}
+                                                                        </div>
+                                                                    )}
+                                                                </TableCell>
+                                                            )}
                                                             <TableCell>
                                                                 {new Date(billing.waktu_mulai).toLocaleTimeString('id-ID', {
                                                                     hour: '2-digit',
@@ -558,9 +572,9 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                                             <TableCell>
                                                                 {billing.waktu_selesai
                                                                     ? new Date(billing.waktu_selesai).toLocaleTimeString('id-ID', {
-                                                                          hour: '2-digit',
-                                                                          minute: '2-digit',
-                                                                      })
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    })
                                                                     : '-'}
                                                             </TableCell>
                                                             <TableCell>
@@ -643,21 +657,30 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                     <span className="font-medium">Durasi</span>
                                     <span>{selectedBilling.durasi ? selectedBilling.durasi : '-'}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-gray-100 py-2">
-                                    <span className="font-medium">Total Biaya</span>
-                                    <span className="font-bold text-blue-600">Rp {Number(selectedBilling.total_biaya).toLocaleString()}</span>
-                                </div>
+                                {auth.user.role.name === "karyawan" ? null :
+                                    <div className="flex justify-between border-b border-gray-100 py-2">
+                                        <span className="font-medium">Total Biaya</span>
+                                        <span className="font-bold text-blue-600">Rp {Number(selectedBilling.total_biaya).toLocaleString()}</span>
+                                    </div>}
                                 <div className="flex justify-between border-b border-gray-100 py-2">
                                     <span className="font-medium">Waktu Mulai</span>
-                                    <span>{selectedBilling.waktu_mulai}</span>
+                                    <span>{new Date(selectedBilling.waktu_mulai).toLocaleString('id-ID')}</span>
                                 </div>
                                 <div className="flex justify-between border-b border-gray-100 py-2">
                                     <span className="font-medium">Waktu Selesai</span>
-                                    <span>{selectedBilling.waktu_selesai ?? '-'}</span>
+                                    <span>
+                                        {selectedBilling.waktu_selesai
+                                            ? new Date(selectedBilling.waktu_selesai).toLocaleString('id-ID')
+                                            : '-'}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between py-2">
                                     <span className="font-medium">Dibuat</span>
                                     <span>{new Date(selectedBilling.created_at).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div className="flex justify-between py-2">
+                                    <span className="font-medium">Dibuat Oleh</span>
+                                    <span>{selectedBilling.user?.name ?? '-'}</span>
                                 </div>
                             </div>
                         )}
@@ -671,7 +694,13 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
             </Card>
 
             {/* Modal Pembayaran */}
-            <ModalPembayaran isOpen={openPembayaran} onClose={handleClosePembayaran} billing={selectedBillingForPayment} promos={promo} />
+            <ModalPembayaran
+                isOpen={openPembayaran}
+                onClose={handleClosePembayaran}
+                billing={selectedBillingForPayment}
+                promos={promo}
+                currentUser={auth?.user || null}
+            />
         </AppLayout>
     );
 }

@@ -51,6 +51,39 @@ const pemilikNavItems: NavItem[] = [
     },
 ];
 
+const penanggungJawabNavItems: NavItem[] = [
+    {
+        title: 'Dashboard',
+        href: dashboard(),
+        icon: ChartColumn,
+    },
+    {
+        title: 'Controll',
+        href: controll(),
+        icon: Joystick,
+    },
+    {
+        title: 'Histori',
+        href: histori.index.url(),
+        icon: ClipboardCheck,
+    },
+    {
+        title: 'Promo',
+        href: promo.index.url(),
+        icon: Tags,
+    },
+    {
+        title: 'Paket',
+        href: paket.index.url(),
+        icon: Gift,
+    },
+    {
+        title: 'User',
+        href: user.index.url(),
+        icon: Users,
+    },
+];
+
 // Menu untuk karyawan (akses terbatas)
 const karyawanNavItems: NavItem[] = [
     {
@@ -88,6 +121,10 @@ export function AppSidebar() {
         switch (user.role.name) {
             case 'pemilik':
                 return pemilikNavItems;
+            case 'super admin':
+                return pemilikNavItems;
+            case 'penanggung jawab':
+                return penanggungJawabNavItems;
             case 'karyawan':
                 return karyawanNavItems;
             default:

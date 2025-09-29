@@ -23,7 +23,7 @@ return new class extends Migration {
             $table->time('durasi')->nullable();
             $table->timestamp('waktu_mulai');
             $table->timestamp('waktu_selesai')->nullable();
-
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
         });
     }

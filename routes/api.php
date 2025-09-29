@@ -2,14 +2,15 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\EspDeviceController;
 use App\Http\Controllers\Api\EspController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\PaketApiController;
 
 Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+    return Auth::user();
+})->middleware('web');
 
 // ESP32 API Routes
 Route::prefix('esp')->group(function () {

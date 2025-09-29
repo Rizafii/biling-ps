@@ -19,7 +19,8 @@ class Billing extends Model
         'durasi',
         'waktu_mulai',
         'waktu_selesai',
-        'paket_id'
+        'paket_id',
+        'user_id'
     ];
 
     protected $casts = [
@@ -44,5 +45,9 @@ class Billing extends Model
     public function promo(): BelongsTo
     {
         return $this->belongsTo(Promo::class, 'promo_id');
+    }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
