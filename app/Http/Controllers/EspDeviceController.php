@@ -293,6 +293,16 @@ class EspDeviceController extends Controller
             }
         }
 
+        // ✅ Urutkan berdasarkan device_id lalu no_port
+        usort($ports, function ($a, $b) {
+            if ($a['device'] === $b['device']) {
+                $numA = (int) filter_var($a['no_port'], FILTER_SANITIZE_NUMBER_INT);
+                $numB = (int) filter_var($b['no_port'], FILTER_SANITIZE_NUMBER_INT);
+                return $numA <=> $numB;
+            }
+            return strcmp($a['device'], $b['device']);
+        });
+
         return response()->json([
             'success' => true,
             'ports' => $ports,

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class BillingController extends Controller
 {
@@ -27,6 +28,7 @@ class BillingController extends Controller
                 'promo_id' => 'nullable|exists:promos,id',
                 'durasi' => 'nullable|string', // Required for timer mode (HH:MM:SS format)
                 'paket_id'      => 'nullable|integer',
+                'user_id'        => 'required|integer', // Required from frontend
             ]);
 
             // Find the ESP relay by device_id and pin
@@ -76,6 +78,7 @@ class BillingController extends Controller
                 'durasi' => $durasi, // Set duration for timer mode
                 'paket_id'      => $validated['paket_id'] ?? null,
                 'waktu_mulai' => Carbon::now(),
+                'user_id'        => $validated['user_id'], // Use user_id from frontend
             ]);
 
             return response()->json([
@@ -90,6 +93,7 @@ class BillingController extends Controller
                     'durasi' => $billing->durasi,
                     'waktu_mulai' => $billing->waktu_mulai->toISOString(),
                     'paket_id' => $billing->paket_id,
+                    'user_id' => $billing->user_id,
                 ],
             ]);
 
@@ -172,6 +176,7 @@ class BillingController extends Controller
                     'waktu_mulai' => $billing->waktu_mulai->toISOString(),
                     'waktu_selesai' => $billing->waktu_selesai->toISOString(),
                     'paket_id' => $billing->paket_id,
+                    'user_id' => $billing->user_id,
                 ],
             ]);
 

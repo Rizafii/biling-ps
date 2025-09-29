@@ -15,7 +15,7 @@ class HistoriController extends Controller
      */
     public function index()
     {
-        $historis = Billing::with(['promo', 'espRelay'])->latest()->get();
+        $historis = Billing::with(['promo', 'espRelay','user'])->latest()->get();
         $promo = Promo::all();
         $esp_relay = EspRelay::all();
 

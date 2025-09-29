@@ -58,7 +58,7 @@ interface Billing {
     updated_at: string;
     promo?: Promo | null;
     esp_relay?: EspRelay | null;
-    // user: User | null;
+    user: User | null;
 }
 
 interface GroupedData {
@@ -678,10 +678,10 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
                                     <span className="font-medium">Dibuat</span>
                                     <span>{new Date(selectedBilling.created_at).toLocaleString('id-ID')}</span>
                                 </div>
-                                {/* <div className="flex justify-between py-2">
+                                <div className="flex justify-between py-2">
                                     <span className="font-medium">Dibuat Oleh</span>
                                     <span>{selectedBilling.user?.name ?? '-'}</span>
-                                </div> */}
+                                </div>
                             </div>
                         )}
                         <DialogFooter>
@@ -694,7 +694,13 @@ export default function Index({ data, promo, esp_relay }: IndexProps) {
             </Card>
 
             {/* Modal Pembayaran */}
-            <ModalPembayaran isOpen={openPembayaran} onClose={handleClosePembayaran} billing={selectedBillingForPayment} promos={promo} />
+            <ModalPembayaran
+                isOpen={openPembayaran}
+                onClose={handleClosePembayaran}
+                billing={selectedBillingForPayment}
+                promos={promo}
+                currentUser={auth?.user || null}
+            />
         </AppLayout>
     );
 }

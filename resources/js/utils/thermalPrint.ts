@@ -15,7 +15,7 @@ interface PrintData {
     waktuMulai: string;
     waktuSelesai: string;
     tanggalCetak: string;
-    // user: string;
+    user: string;
 }
 
 export class ThermalPrinter {
@@ -213,7 +213,7 @@ export class ThermalPrinter {
         // Footer
         content += COMMANDS.ALIGN_CENTER;
         content += 'Terima Kasih' + COMMANDS.PAPER_FEED_LINE;
-        // content += this.centerText(`-- kasir: ${data.user} --`) + COMMANDS.PAPER_FEED_LINE;
+        content += this.centerText(`-- kasir: ${data.user} --`) + COMMANDS.PAPER_FEED_LINE;
 
         // Feed & cut
         content += COMMANDS.PAPER_FEED_LINE.repeat(3);
@@ -476,11 +476,11 @@ export class ThermalPrinter {
     <div class="center footer">
         <div class="section">Terima Kasih</div>
         <br>
+        <div class="size-normal">-- kasir: ${data.user} --</div>
         </div>
         </body>
         </html>`;
     }
-    // <div class="size-normal">-- kasir: ${data.user} --</div>
 
     private static showPrintPreview(data: PrintData): void {
         const modal = document.createElement('div');

@@ -59,9 +59,10 @@ interface ModalPembayaranProps {
     onClose: () => void;
     billing: Billing | null;
     promos: Promo[];
+    currentUser?: User | null; // Add current user prop
 }
 
-export default function ModalPembayaran({ isOpen, onClose, billing, promos }: ModalPembayaranProps) {
+export default function ModalPembayaran({ isOpen, onClose, billing, promos, currentUser }: ModalPembayaranProps) {
     const [selectedPromoId, setSelectedPromoId] = useState<string>('no-promo');
     const [isProcessing, setIsProcessing] = useState(false);
     const [calculatedTotal, setCalculatedTotal] = useState<number>(0);
@@ -194,7 +195,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 waktuMulai: billing.waktu_mulai,
                 waktuSelesai: billing.waktu_selesai || new Date().toISOString(),
                 tanggalCetak: new Date().toISOString(),
-                // user: billing.user?.name || '-'
+                user: currentUser?.name || 'Unknown'
             };
 
             // Silent print attempt after payment
@@ -230,7 +231,7 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 waktuMulai: billing.waktu_mulai,
                 waktuSelesai: billing.waktu_selesai || new Date().toISOString(),
                 tanggalCetak: new Date().toISOString(),
-                // user: billing.user?.name || '-'
+                user: currentUser?.name || 'Unknown'
             };
 
             toast.info('Mengirim ke printer...');
@@ -376,6 +377,16 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                         <div className="flex justify-between text-lg font-semibold">
                             <span>Total Bayar:</span>
                             <span className="text-primary">{formatCurrency(calculatedTotal)}</span>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Cashier Information */}
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                            <span>Kasir:</span>
+                            <span className="font-medium text-foreground">{currentUser?.name || 'Unknown'}</span>
                         </div>
                     </div>
                 </div>
