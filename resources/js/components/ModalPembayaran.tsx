@@ -29,6 +29,11 @@ interface EspRelay {
     updated_at: string;
 }
 
+interface User {
+    id: number;
+    name: string;
+}
+
 interface Billing {
     id: number;
     esp_relay_id: number;
@@ -46,6 +51,7 @@ interface Billing {
     updated_at: string;
     promo?: Promo | null;
     esp_relay?: EspRelay | null;
+    // user: User | null;
 }
 
 interface ModalPembayaranProps {
@@ -178,22 +184,17 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 totalBiaya: billing.total_biaya,
                 promo: selectedPromo
                     ? {
-                          name: selectedPromo.name,
-                          type: selectedPromo.type,
-                          value: selectedPromo.value,
-                      }
+                        name: selectedPromo.name,
+                        type: selectedPromo.type,
+                        value: selectedPromo.value,
+                    }
                     : null,
                 diskon: billing.total_biaya - calculatedTotal,
                 totalBayar: calculatedTotal,
                 waktuMulai: billing.waktu_mulai,
                 waktuSelesai: billing.waktu_selesai || new Date().toISOString(),
-                tanggalCetak: new Date().toLocaleString('id-ID', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
+                tanggalCetak: new Date().toISOString(),
+                // user: billing.user?.name || '-'
             };
 
             // Silent print attempt after payment
@@ -219,22 +220,17 @@ export default function ModalPembayaran({ isOpen, onClose, billing, promos }: Mo
                 totalBiaya: billing.total_biaya,
                 promo: selectedPromo
                     ? {
-                          name: selectedPromo.name,
-                          type: selectedPromo.type,
-                          value: selectedPromo.value,
-                      }
+                        name: selectedPromo.name,
+                        type: selectedPromo.type,
+                        value: selectedPromo.value,
+                    }
                     : null,
                 diskon: billing.total_biaya - calculatedTotal,
                 totalBayar: calculatedTotal,
                 waktuMulai: billing.waktu_mulai,
                 waktuSelesai: billing.waktu_selesai || new Date().toISOString(),
-                tanggalCetak: new Date().toLocaleString('id-ID', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
+                tanggalCetak: new Date().toISOString(),
+                // user: billing.user?.name || '-'
             };
 
             toast.info('Mengirim ke printer...');

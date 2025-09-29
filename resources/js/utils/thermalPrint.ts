@@ -15,6 +15,7 @@ interface PrintData {
     waktuMulai: string;
     waktuSelesai: string;
     tanggalCetak: string;
+    // user: string;
 }
 
 export class ThermalPrinter {
@@ -92,14 +93,6 @@ export class ThermalPrinter {
         });
     }
 
-    private static formatTime(dateString: string): string {
-        const date = new Date(dateString);
-        return date.toLocaleString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    }
-
     private static formatDate(dateString: string): string {
         const date = new Date(dateString);
         return date.toLocaleString('id-ID', {
@@ -108,6 +101,15 @@ export class ThermalPrinter {
             day: '2-digit',
         });
     }
+
+    private static formatTime(dateString: string): string {
+        const date = new Date(dateString);
+        return date.toLocaleString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }
+
 
     // Create properly spaced line with exact character positioning
     private static createLine(left: string, right: string, totalWidth: number = 32): string {
@@ -141,22 +143,21 @@ export class ThermalPrinter {
         const { COMMANDS } = ThermalPrinter;
         let content = '';
 
-        // Initialize printer with proper settings
+        // Initialize printer
         content += COMMANDS.INIT;
-        content += COMMANDS.CHARSET_PC437;  // Set character set
-        content += COMMANDS.LINE_SPACING_DEFAULT; // Set line spacing
+        content += COMMANDS.CHARSET_PC437;
+        content += COMMANDS.LINE_SPACING_DEFAULT;
 
-        // Header - Business name
+        // Header
         content += COMMANDS.ALIGN_CENTER;
         content += COMMANDS.SIZE_DOUBLE_BOTH;
         content += COMMANDS.BOLD_ON;
-        content += 'BILLING PS' + COMMANDS.PAPER_FEED_LINE;
+        content += 'AF RIMURU' + COMMANDS.PAPER_FEED_LINE;
         content += COMMANDS.SIZE_NORMAL;
         content += COMMANDS.BOLD_OFF;
 
-        // Subtitle
         content += COMMANDS.SIZE_DOUBLE_WIDTH;
-        content += 'STRUK PEMBAYARAN' + COMMANDS.PAPER_FEED_LINE;
+        content += 'PLAYPAL CAFE' + COMMANDS.PAPER_FEED_LINE;
         content += COMMANDS.SIZE_NORMAL;
         content += COMMANDS.ALIGN_LEFT;
 
@@ -195,63 +196,32 @@ export class ThermalPrinter {
         content += COMMANDS.BOLD_OFF;
         content += this.createLine('Subtotal:', this.formatCurrency(data.totalBiaya)) + COMMANDS.PAPER_FEED_LINE;
 
-        // Promo information (if exists)
         if (data.promo && data.diskon > 0) {
             content += this.createLine('Promo:', data.promo.name) + COMMANDS.PAPER_FEED_LINE;
-
-            // Show promo details
-            let promoDetail = '';
-            switch (data.promo.type) {
-                case 'flat':
-                    promoDetail = `Pot. ${this.formatCurrency(data.promo.value)}`;
-                    break;
-                case 'percent':
-                    promoDetail = `Disc ${data.promo.value}%`;
-                    break;
-                case 'time':
-                    promoDetail = `Bonus ${data.promo.value} menit`;
-                    break;
-                default:
-                    promoDetail = 'Diskon';
-            }
-            content += this.createLine('', promoDetail) + COMMANDS.PAPER_FEED_LINE;
             content += this.createLine('Potongan:', `-${this.formatCurrency(data.diskon)}`) + COMMANDS.PAPER_FEED_LINE;
         }
 
-        // Total separator
+        // Total
         content += this.createSeparator('=') + COMMANDS.PAPER_FEED_LINE;
-
-        // Total amount - emphasized
         content += COMMANDS.SIZE_DOUBLE_WIDTH;
         content += COMMANDS.BOLD_ON;
         content += this.createLine('TOTAL BAYAR:', this.formatCurrency(data.totalBayar), 16) + COMMANDS.PAPER_FEED_LINE;
         content += COMMANDS.SIZE_NORMAL;
         content += COMMANDS.BOLD_OFF;
-
         content += this.createSeparator('=') + COMMANDS.PAPER_FEED_LINE;
 
-        // Footer message
+        // Footer
         content += COMMANDS.ALIGN_CENTER;
-        content += COMMANDS.PAPER_FEED_LINE;
         content += 'Terima Kasih' + COMMANDS.PAPER_FEED_LINE;
-        content += 'Selamat Bermain!' + COMMANDS.PAPER_FEED_LINE;
-        content += COMMANDS.PAPER_FEED_LINE;
+        // content += this.centerText(`-- kasir: ${data.user} --`) + COMMANDS.PAPER_FEED_LINE;
 
-        // Small footer info
-        content += COMMANDS.SIZE_NORMAL;
-        content += this.centerText('-- STRUK INI ADALAH BUKTI --') + COMMANDS.PAPER_FEED_LINE;
-        content += this.centerText('-- PEMBAYARAN YANG SAH --') + COMMANDS.PAPER_FEED_LINE;
-
-        // Extra line feeds before cutting
-        content += COMMANDS.PAPER_FEED_LINE;
-        content += COMMANDS.PAPER_FEED_LINE;
-        content += COMMANDS.PAPER_FEED_LINE;
-
-        // Cut paper
+        // Feed & cut
+        content += COMMANDS.PAPER_FEED_LINE.repeat(3);
         content += COMMANDS.PAPER_CUT_PARTIAL;
 
         return content;
     }
+
 
     public static async printReceipt(data: PrintData): Promise<boolean> {
         try {
@@ -350,7 +320,7 @@ export class ThermalPrinter {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Struk Pembayaran PlayStation</title>
+    <title>AF RIMURU</title>
     <meta charset="utf-8">
     <style>
         @page {
@@ -427,8 +397,8 @@ export class ThermalPrinter {
     </style>
 </head>
 <body>
-    <div class="center bold size-xlarge">BILLING PS</div>
-    <div class="center bold size-large">STRUK PEMBAYARAN</div>
+    <div class="center bold size-xlarge">AF RIMURU</div>
+    <div class="center bold size-large">PLAYPAL CAFE</div>
     <div class="line-double separator"></div>
 
     <div class="row">
@@ -505,14 +475,12 @@ export class ThermalPrinter {
 
     <div class="center footer">
         <div class="section">Terima Kasih</div>
-        <div class="section">Selamat Bermain!</div>
         <br>
-        <div class="size-normal">-- STRUK INI ADALAH BUKTI --</div>
-        <div class="size-normal">-- PEMBAYARAN YANG SAH --</div>
-    </div>
-</body>
-</html>`;
+        </div>
+        </body>
+        </html>`;
     }
+    // <div class="size-normal">-- kasir: ${data.user} --</div>
 
     private static showPrintPreview(data: PrintData): void {
         const modal = document.createElement('div');
